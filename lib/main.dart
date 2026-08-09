@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const IsadApp());
@@ -64,6 +65,10 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   List<Entry> entries = [];
+  bool isLoading = true;
+
+  // तेरे Firebase Realtime Database का डायरेक्ट लिंक
+  final String dbUrl = 'https://irsad-b0b2d-default-rtdb.asia-southeast1.firebasedatabase.app/ration_entries.json';
 
   @override
   void initState() {
@@ -71,7 +76,29 @@ class _HomeScreenState extends State<HomeScreen> {
     loadData();
   }
 
+  // इंटरनेट से डेटा लोड करने का फंक्शन
   Future<void> loadData() async {
+    try {
+      final response = await http.get(Uri.parse(dbUrl));
+      if (response.statusCode == 200 && response.body != 'null') {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        List<Entry> loaded = [];
+        data.forEach((key, value) {
+          loaded.add(Entry.fromJson(value));
+        });
+        setState(() {
+          entries = loaded;
+          isLoading = false;
+        });
+      } else {
+        _loadLocalData(); // अगर ऑनलाइन डेटा नहीं मिला, तो लोकल चेक करो
+      }
+    } catch (e) {
+      _loadLocalData(); // अगर इंटरनेट नहीं है, तो लोकल डेटा दिखाओ
+    }
+  }
+
+  Future<void> _loadLocalData() async {
     final prefs = await SharedPreferences.getInstance();
     String? data = prefs.getString('isad_entries');
     if (data != null) {
@@ -80,12 +107,27 @@ class _HomeScreenState extends State<HomeScreen> {
         entries = decoded.map((e) => Entry.fromJson(e)).toList();
       });
     }
+    setState(() => isLoading = false);
   }
 
+  // डेटा को ऑनलाइन और लोकल दोनों जगह सेव करने का फंक्शन
   Future<void> saveData() async {
+    // 1. पहले लोकल फोन में सेव करो
     final prefs = await SharedPreferences.getInstance();
     String encoded = jsonEncode(entries.map((e) => e.toJson()).toList());
     await prefs.setString('isad_entries', encoded);
+
+    // 2. फिर ऑनलाइन क्लाउड पर भेजो
+    try {
+      Map<String, dynamic> dataMap = {};
+      for (var e in entries) {
+        dataMap[e.id.toString()] = e.toJson();
+      }
+      await http.put(Uri.parse(dbUrl), body: jsonEncode(dataMap));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ऑनलाइन सेव हो गया! ✓', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green, duration: Duration(seconds: 1)));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('इंटरनेट नहीं है, फोन में सेव हुआ!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.orange, duration: Duration(seconds: 2)));
+    }
   }
 
   void _showAddModal() {
@@ -115,10 +157,11 @@ class _HomeScreenState extends State<HomeScreen> {
     double grandTotal = entries.fold(0, (sum, item) => sum + item.price);
 
     final List<Widget> pages = [
-      DashboardTab(entries: entries, formatPrice: _formatPrice),
+      DashboardTab(entries: entries, formatPrice: _formatPrice, isLoading: isLoading),
       HistoryTab(
         entries: entries,
         formatPrice: _formatPrice,
+        isLoading: isLoading,
         onDelete: (id) {
           setState(() {
             entries.removeWhere((e) => e.id == id);
@@ -144,29 +187,26 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: pages[_currentIndex],
       
-      // Floating Action Button (बीच वाला गोल बटन)
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF38bdf8),
-        shape: const CircleBorder(), // बटन को एकदम गोल बनाने के लिए
+        shape: const CircleBorder(),
         elevation: 4,
         onPressed: _showAddModal,
         child: const Icon(Icons.add, color: Color(0xFF0b0f19), size: 32),
       ),
-      // बटन को नेविगेशन बार के बीच में सेट करने के लिए
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       
-      // Notch वाला Bottom Navigation Bar
       bottomNavigationBar: BottomAppBar(
         color: const Color(0xFF1e293b),
-        shape: const CircularNotchedRectangle(), // कट (Notch) बनाने के लिए
-        notchMargin: 8.0, // बटन और बार के बीच की जगह
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8.0,
         child: SizedBox(
-          height: 65, // बार की ऊंचाई
+          height: 65,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildNavItem(Icons.home, 'Home', 0),
-              const SizedBox(width: 48), // बीच में FAB के लिए खाली जगह
+              const SizedBox(width: 48),
               _buildNavItem(Icons.table_chart, 'Sheet', 1),
             ],
           ),
@@ -182,7 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
       behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center, // आइकन को हल्का ऊपर और सेंटर में करने के लिए
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, color: isActive ? const Color(0xFF38bdf8) : const Color(0xFF94a3b8), size: 26),
           const SizedBox(height: 4),
@@ -196,8 +236,9 @@ class _HomeScreenState extends State<HomeScreen> {
 class DashboardTab extends StatelessWidget {
   final List<Entry> entries;
   final String Function(double) formatPrice;
+  final bool isLoading;
 
-  const DashboardTab({super.key, required this.entries, required this.formatPrice});
+  const DashboardTab({super.key, required this.entries, required this.formatPrice, required this.isLoading});
 
   @override
   Widget build(BuildContext context) {
@@ -214,7 +255,9 @@ class DashboardTab extends StatelessWidget {
           child: Text('Members Total Summary', style: TextStyle(color: Color(0xFF94a3b8), fontSize: 14, fontWeight: FontWeight.bold)),
         ),
         Expanded(
-          child: entries.isEmpty
+          child: isLoading 
+            ? const Center(child: CircularProgressIndicator(color: Color(0xFF38bdf8)))
+            : entries.isEmpty
               ? const Center(child: Text('Abhi koi data nahi hai.\nNiche (+) dabakar entry karein.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF94a3b8))))
               : ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
@@ -252,14 +295,13 @@ class HistoryTab extends StatelessWidget {
   final List<Entry> entries;
   final Function(int) onDelete;
   final String Function(double) formatPrice;
+  final bool isLoading;
 
-  const HistoryTab({super.key, required this.entries, required this.onDelete, required this.formatPrice});
+  const HistoryTab({super.key, required this.entries, required this.onDelete, required this.formatPrice, required this.isLoading});
 
   @override
   Widget build(BuildContext context) {
     List<Entry> sorted = List.from(entries)..sort((a, b) => b.date.compareTo(a.date));
-
-    // Custom Responsive Row Style (बिना Horizontal Scroll के)
     const TextStyle headerStyle = TextStyle(color: Color(0xFF38bdf8), fontWeight: FontWeight.bold, fontSize: 13);
     const TextStyle rowStyle = TextStyle(color: Color(0xFFf8fafc), fontSize: 13);
 
@@ -271,7 +313,9 @@ class HistoryTab extends StatelessWidget {
           child: Text('Sabhi Entries ka Record', style: TextStyle(color: Color(0xFF94a3b8), fontSize: 14, fontWeight: FontWeight.bold)),
         ),
         Expanded(
-          child: entries.isEmpty
+          child: isLoading 
+            ? const Center(child: CircularProgressIndicator(color: Color(0xFF38bdf8)))
+            : entries.isEmpty
               ? const Center(child: Text('Koi history available nahi hai.', style: TextStyle(color: Color(0xFF94a3b8))))
               : Container(
                   margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -282,7 +326,6 @@ class HistoryTab extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      // Table Header
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                         decoration: const BoxDecoration(
@@ -295,11 +338,10 @@ class HistoryTab extends StatelessWidget {
                             Expanded(flex: 3, child: Text('Naam', style: headerStyle)),
                             Expanded(flex: 3, child: Text('Saman', style: headerStyle)),
                             Expanded(flex: 2, child: Text('₹', style: headerStyle)),
-                            SizedBox(width: 24), // डिलीट आइकॉन के लिए जगह
+                            SizedBox(width: 24),
                           ],
                         ),
                       ),
-                      // Table List (Responsive)
                       Expanded(
                         child: ListView.separated(
                           padding: EdgeInsets.zero,
@@ -307,11 +349,8 @@ class HistoryTab extends StatelessWidget {
                           separatorBuilder: (context, index) => const Divider(color: Color(0xFF334155), height: 1),
                           itemBuilder: (context, index) {
                             final e = sorted[index];
-                            // तारीख को छोटा दिखाना (ताकि स्क्रीन पर फिट बैठे)
                             String shortDate = e.date;
-                            if (shortDate.length == 10) {
-                              shortDate = shortDate.substring(5); // YYYY-MM-DD से MM-DD कर दिया
-                            }
+                            if (shortDate.length == 10) shortDate = shortDate.substring(5); 
 
                             return Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
@@ -448,7 +487,7 @@ class _AddEntryModalState extends State<AddEntryModal> {
                       widget.onSave(newEntry);
                       Navigator.pop(context);
                     },
-                    child: const Text('Save Karein', style: TextStyle(color: Color(0xFF0b0f19), fontWeight: FontWeight.bold, fontSize: 15)),
+                    child: const Text('Save Karein', style: TextStyle(color: Color(0xFF0b0f19), fontWeight.bold, fontSize: 15)),
                   ),
                 ),
               ],
