@@ -10,6 +10,9 @@ void main() {
 class IsadApp extends StatelessWidget {
   const IsadApp({super.key});
 
+  // तेरी Firebase Web API Key
+  static const String apiKey = 'AIzaSyA1Dg_ospNbgXatGj4xnWq-1njNc5Y0dCY'; 
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -24,7 +27,147 @@ class IsadApp extends StatelessWidget {
           surface: Color(0xFF1e293b),
         ),
       ),
-      home: const HomeScreen(),
+      home: const AuthCheck(),
+    );
+  }
+}
+
+class AuthCheck extends StatefulWidget {
+  const AuthCheck({super.key});
+
+  @override
+  State<AuthCheck> createState() => _AuthCheckState();
+}
+
+class _AuthCheckState extends State<AuthCheck> {
+  bool isLoading = true;
+  String? token;
+  String? uid;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      token = prefs.getString('auth_token');
+      uid = prefs.getString('auth_uid');
+      isLoading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator(color: Color(0xFF38bdf8))));
+    }
+    if (token != null && uid != null) {
+      return HomeScreen(token: token!, uid: uid!);
+    }
+    return const AuthScreen();
+  }
+}
+
+class AuthScreen extends StatefulWidget {
+  const AuthScreen({super.key});
+
+  @override
+  State<AuthScreen> createState() => _AuthScreenState();
+}
+
+class _AuthScreenState extends State<AuthScreen> {
+  bool isLogin = true;
+  bool isLoading = false;
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  Future<void> _authenticate() async {
+    if (emailController.text.trim().isEmpty || passwordController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email aur Password dono dalein!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red));
+      return;
+    }
+
+    setState(() => isLoading = true);
+    final url = isLogin 
+        ? 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${IsadApp.apiKey}'
+        : 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${IsadApp.apiKey}';
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        body: jsonEncode({
+          'email': emailController.text.trim(),
+          'password': passwordController.text.trim(),
+          'returnSecureToken': true,
+        }),
+      );
+      
+      final responseData = jsonDecode(response.body);
+      
+      if (responseData['error'] != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(responseData['error']['message'], style: const TextStyle(color: Colors.white)), backgroundColor: Colors.red));
+      } else {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('auth_token', responseData['idToken']);
+        await prefs.setString('auth_uid', responseData['localId']);
+        
+        if (mounted) {
+          Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => HomeScreen(token: responseData['idToken'], uid: responseData['localId'])));
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Internet check karein!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red));
+    }
+    if (mounted) setState(() => isLoading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.account_balance_wallet, size: 80, color: Color(0xFF38bdf8)),
+              const SizedBox(height: 20),
+              Text(isLogin ? 'Isad Khata me Login karein' : 'Naya Account Banayein', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 30),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(labelText: 'Email Address', border: OutlineInputBorder()),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 15),
+              TextField(
+                controller: passwordController,
+                decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder()),
+                obscureText: true,
+              ),
+              const SizedBox(height: 20),
+              isLoading 
+                ? const CircularProgressIndicator(color: Color(0xFF38bdf8))
+                : SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF38bdf8), padding: const EdgeInsets.symmetric(vertical: 14)),
+                      onPressed: _authenticate,
+                      child: Text(isLogin ? 'Login' : 'Register', style: const TextStyle(color: Color(0xFF0b0f19), fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                  ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () => setState(() => isLogin = !isLogin),
+                child: Text(isLogin ? 'Naya account banayein?' : 'Pehle se account hai? Login karein', style: const TextStyle(color: Color(0xFF38bdf8))),
+              )
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -38,25 +181,14 @@ class Entry {
 
   Entry({required this.id, required this.name, required this.date, required this.item, required this.price});
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'date': date,
-        'item': item,
-        'price': price,
-      };
-
-  factory Entry.fromJson(Map<String, dynamic> json) => Entry(
-        id: json['id'],
-        name: json['name'],
-        date: json['date'],
-        item: json['item'],
-        price: json['price'].toDouble(),
-      );
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'date': date, 'item': item, 'price': price};
+  factory Entry.fromJson(Map<String, dynamic> json) => Entry(id: json['id'], name: json['name'], date: json['date'], item: json['item'], price: json['price'].toDouble());
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final String token;
+  final String uid;
+  const HomeScreen({super.key, required this.token, required this.uid});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -66,13 +198,12 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   List<Entry> entries = [];
   bool isLoading = true;
-
-  // Firebase Realtime Database URL
-  final String dbUrl = 'https://irsad-b0b2d-default-rtdb.asia-southeast1.firebasedatabase.app/ration_entries.json';
+  late String dbUrl;
 
   @override
   void initState() {
     super.initState();
+    dbUrl = 'https://irsad-b0b2d-default-rtdb.asia-southeast1.firebasedatabase.app/users/${widget.uid}/ration_entries.json?auth=${widget.token}';
     loadData();
   }
 
@@ -90,39 +221,31 @@ class _HomeScreenState extends State<HomeScreen> {
           isLoading = false;
         });
       } else {
-        _loadLocalData(); 
+        setState(() => isLoading = false);
       }
     } catch (e) {
-      _loadLocalData(); 
+      setState(() => isLoading = false);
     }
-  }
-
-  Future<void> _loadLocalData() async {
-    final prefs = await SharedPreferences.getInstance();
-    String? data = prefs.getString('isad_entries');
-    if (data != null) {
-      List decoded = jsonDecode(data);
-      setState(() {
-        entries = decoded.map((e) => Entry.fromJson(e)).toList();
-      });
-    }
-    setState(() => isLoading = false);
   }
 
   Future<void> saveData() async {
-    final prefs = await SharedPreferences.getInstance();
-    String encoded = jsonEncode(entries.map((e) => e.toJson()).toList());
-    await prefs.setString('isad_entries', encoded);
-
     try {
       Map<String, dynamic> dataMap = {};
       for (var e in entries) {
         dataMap[e.id.toString()] = e.toJson();
       }
       await http.put(Uri.parse(dbUrl), body: jsonEncode(dataMap));
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Online Save Ho Gaya! ✓', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green, duration: Duration(seconds: 1)));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Online Save Ho Gaya! ✓', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green, duration: Duration(seconds: 1)));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No Internet! Phone me save hua.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.orange, duration: Duration(seconds: 2)));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Internet error! Data save nahi hua.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red, duration: Duration(seconds: 2)));
+    }
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    if (mounted) {
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => const AuthScreen()));
     }
   }
 
@@ -135,18 +258,14 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => AddEntryModal(
         existingEntries: entries,
         onSave: (newEntry) {
-          setState(() {
-            entries.add(newEntry);
-          });
+          setState(() { entries.add(newEntry); });
           saveData();
         },
       ),
     );
   }
 
-  String _formatPrice(double price) {
-    return price % 1 == 0 ? price.toInt().toString() : price.toStringAsFixed(2);
-  }
+  String _formatPrice(double price) => price % 1 == 0 ? price.toInt().toString() : price.toStringAsFixed(2);
 
   @override
   Widget build(BuildContext context) {
@@ -159,9 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
         formatPrice: _formatPrice,
         isLoading: isLoading,
         onDelete: (id) {
-          setState(() {
-            entries.removeWhere((e) => e.id == id);
-          });
+          setState(() { entries.removeWhere((e) => e.id == id); });
           saveData();
         },
       ),
@@ -171,18 +288,16 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1e293b),
         elevation: 1,
-        title: const Text('Isad - Ration Khata', style: TextStyle(color: Color(0xFF38bdf8), fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text('Isad', style: TextStyle(color: Color(0xFF38bdf8), fontWeight: FontWeight.bold, fontSize: 18)),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 20.0),
-            child: Center(
-              child: Text('Total: ₹${_formatPrice(grandTotal)}', style: const TextStyle(color: Color(0xFF22c55e), fontWeight: FontWeight.bold, fontSize: 15)),
-            ),
-          ),
+          Center(child: Text('Total: ₹${_formatPrice(grandTotal)}', style: const TextStyle(color: Color(0xFF22c55e), fontWeight: FontWeight.bold, fontSize: 15))),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.redAccent),
+            onPressed: _logout,
+          )
         ],
       ),
       body: pages[_currentIndex],
-      
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF38bdf8),
         shape: const CircleBorder(),
@@ -191,7 +306,6 @@ class _HomeScreenState extends State<HomeScreen> {
         child: const Icon(Icons.add, color: Color(0xFF0b0f19), size: 32),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      
       bottomNavigationBar: BottomAppBar(
         color: const Color(0xFF1e293b),
         shape: const CircularNotchedRectangle(),
@@ -239,9 +353,7 @@ class DashboardTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Map<String, double> memberTotals = {};
-    for (var e in entries) {
-      memberTotals[e.name] = (memberTotals[e.name] ?? 0) + e.price;
-    }
+    for (var e in entries) { memberTotals[e.name] = (memberTotals[e.name] ?? 0) + e.price; }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,11 +372,7 @@ class DashboardTab extends StatelessWidget {
                   children: memberTotals.entries.map((entry) => Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1e293b),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFF334155)),
-                    ),
+                    decoration: BoxDecoration(color: const Color(0xFF1e293b), borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFF334155))),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -273,7 +381,7 @@ class DashboardTab extends StatelessWidget {
                           children: [
                             Text(entry.key, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFFf8fafc))),
                             const SizedBox(height: 4),
-                            const Text('Total Kharcha / Hisab', style: TextStyle(fontSize: 13, color: Color(0xFF94a3b8))),
+                            const Text('Total Kharcha', style: TextStyle(fontSize: 13, color: Color(0xFF94a3b8))),
                           ],
                         ),
                         Text('₹${formatPrice(entry.value)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF38bdf8))),
@@ -315,19 +423,12 @@ class HistoryTab extends StatelessWidget {
               ? const Center(child: Text('Koi history available nahi hai.', style: TextStyle(color: Color(0xFF94a3b8))))
               : Container(
                   margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1e293b),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF334155)),
-                  ),
+                  decoration: BoxDecoration(color: const Color(0xFF1e293b), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF334155))),
                   child: Column(
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF0f172a),
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-                        ),
+                        decoration: const BoxDecoration(color: Color(0xFF0f172a), borderRadius: BorderRadius.vertical(top: Radius.circular(12))),
                         child: const Row(
                           children: [
                             Expanded(flex: 3, child: Text('Date', style: headerStyle)),
@@ -345,8 +446,7 @@ class HistoryTab extends StatelessWidget {
                           separatorBuilder: (context, index) => const Divider(color: Color(0xFF334155), height: 1),
                           itemBuilder: (context, index) {
                             final e = sorted[index];
-                            String shortDate = e.date;
-                            if (shortDate.length == 10) shortDate = shortDate.substring(5); 
+                            String shortDate = e.date.length == 10 ? e.date.substring(5) : e.date; 
 
                             return Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
@@ -356,10 +456,7 @@ class HistoryTab extends StatelessWidget {
                                   Expanded(flex: 3, child: Text(e.name, style: rowStyle.copyWith(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
                                   Expanded(flex: 3, child: Text(e.item, style: rowStyle, maxLines: 1, overflow: TextOverflow.ellipsis)),
                                   Expanded(flex: 2, child: Text('₹${formatPrice(e.price)}', style: rowStyle.copyWith(color: const Color(0xFF38bdf8), fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                                  GestureDetector(
-                                    onTap: () => onDelete(e.id),
-                                    child: const Icon(Icons.close, color: Color(0xFFef4444), size: 20),
-                                  ),
+                                  GestureDetector(onTap: () => onDelete(e.id), child: const Icon(Icons.close, color: Color(0xFFef4444), size: 20)),
                                 ],
                               ),
                             );
@@ -410,60 +507,27 @@ class _AddEntryModalState extends State<AddEntryModal> {
                 style: const TextStyle(color: Color(0xFFf8fafc)),
                 decoration: const InputDecoration(labelText: 'Member ka Naam (Chunein)', border: OutlineInputBorder(), labelStyle: TextStyle(color: Color(0xFF94a3b8))),
                 items: existingNames.map((n) => DropdownMenuItem(value: n, child: Text(n))).toList(),
-                onChanged: (val) {
-                  if (val != null) nameController.text = val;
-                },
+                onChanged: (val) { if (val != null) nameController.text = val; },
               ),
               const SizedBox(height: 10),
             ],
-            TextField(
-              controller: nameController,
-              style: const TextStyle(color: Color(0xFFf8fafc)),
-              decoration: const InputDecoration(labelText: 'Naya Naam Likhein', border: OutlineInputBorder(), labelStyle: TextStyle(color: Color(0xFF94a3b8))),
-            ),
+            TextField(controller: nameController, style: const TextStyle(color: Color(0xFFf8fafc)), decoration: const InputDecoration(labelText: 'Naya Naam Likhein', border: OutlineInputBorder(), labelStyle: TextStyle(color: Color(0xFF94a3b8)))),
             const SizedBox(height: 10),
             TextField(
-              controller: TextEditingController(text: selectedDate),
-              readOnly: true,
-              style: const TextStyle(color: Color(0xFFf8fafc)),
-              decoration: const InputDecoration(labelText: 'Date', border: OutlineInputBorder(), labelStyle: TextStyle(color: Color(0xFF94a3b8))),
+              controller: TextEditingController(text: selectedDate), readOnly: true, style: const TextStyle(color: Color(0xFFf8fafc)), decoration: const InputDecoration(labelText: 'Date', border: OutlineInputBorder(), labelStyle: TextStyle(color: Color(0xFF94a3b8))),
               onTap: () async {
-                DateTime? picked = await showDatePicker(
-                  context: context,
-                  initialDate: DateTime.now(),
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2030),
-                );
-                if (picked != null) {
-                  setState(() {
-                    selectedDate = picked.toIso8601String().split('T')[0];
-                  });
-                }
+                DateTime? picked = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2030));
+                if (picked != null) { setState(() { selectedDate = picked.toIso8601String().split('T')[0]; }); }
               },
             ),
             const SizedBox(height: 10),
-            TextField(
-              controller: itemController,
-              style: const TextStyle(color: Color(0xFFf8fafc)),
-              decoration: const InputDecoration(labelText: 'Saman ka Naam (Optional)', border: OutlineInputBorder(), labelStyle: TextStyle(color: Color(0xFF94a3b8))),
-            ),
+            TextField(controller: itemController, style: const TextStyle(color: Color(0xFFf8fafc)), decoration: const InputDecoration(labelText: 'Saman ka Naam (Optional)', border: OutlineInputBorder(), labelStyle: TextStyle(color: Color(0xFF94a3b8)))),
             const SizedBox(height: 10),
-            TextField(
-              controller: priceController,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(color: Color(0xFFf8fafc)),
-              decoration: const InputDecoration(labelText: 'Kitne Paise (₹)', border: OutlineInputBorder(), labelStyle: TextStyle(color: Color(0xFF94a3b8))),
-            ),
+            TextField(controller: priceController, keyboardType: TextInputType.number, style: const TextStyle(color: Color(0xFFf8fafc)), decoration: const InputDecoration(labelText: 'Kitne Paise (₹)', border: OutlineInputBorder(), labelStyle: TextStyle(color: Color(0xFF94a3b8)))),
             const SizedBox(height: 20),
             Row(
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), side: const BorderSide(color: Color(0xFF334155))),
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Radd Karein', style: TextStyle(color: Color(0xFFf8fafc), fontWeight: FontWeight.bold, fontSize: 15)),
-                  ),
-                ),
+                Expanded(child: OutlinedButton(style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), side: const BorderSide(color: Color(0xFF334155))), onPressed: () => Navigator.pop(context), child: const Text('Radd Karein', style: TextStyle(color: Color(0xFFf8fafc), fontWeight: FontWeight.bold, fontSize: 15)))),
                 const SizedBox(width: 10),
                 Expanded(
                   child: ElevatedButton(
@@ -473,13 +537,7 @@ class _AddEntryModalState extends State<AddEntryModal> {
                       double? price = double.tryParse(priceController.text);
                       if (price == null || price <= 0) return;
 
-                      Entry newEntry = Entry(
-                        id: DateTime.now().millisecondsSinceEpoch,
-                        name: nameController.text.trim(),
-                        date: selectedDate,
-                        item: itemController.text.trim().isEmpty ? 'Ration Saman' : itemController.text.trim(),
-                        price: price,
-                      );
+                      Entry newEntry = Entry(id: DateTime.now().millisecondsSinceEpoch, name: nameController.text.trim(), date: selectedDate, item: itemController.text.trim().isEmpty ? 'Ration Saman' : itemController.text.trim(), price: price);
                       widget.onSave(newEntry);
                       Navigator.pop(context);
                     },
