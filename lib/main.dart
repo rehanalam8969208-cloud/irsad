@@ -67,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Entry> entries = [];
   bool isLoading = true;
 
-  // तेरे Firebase Realtime Database का डायरेक्ट लिंक
+  // Firebase Realtime Database URL
   final String dbUrl = 'https://irsad-b0b2d-default-rtdb.asia-southeast1.firebasedatabase.app/ration_entries.json';
 
   @override
@@ -76,7 +76,6 @@ class _HomeScreenState extends State<HomeScreen> {
     loadData();
   }
 
-  // इंटरनेट से डेटा लोड करने का फंक्शन
   Future<void> loadData() async {
     try {
       final response = await http.get(Uri.parse(dbUrl));
@@ -91,10 +90,10 @@ class _HomeScreenState extends State<HomeScreen> {
           isLoading = false;
         });
       } else {
-        _loadLocalData(); // अगर ऑनलाइन डेटा नहीं मिला, तो लोकल चेक करो
+        _loadLocalData(); 
       }
     } catch (e) {
-      _loadLocalData(); // अगर इंटरनेट नहीं है, तो लोकल डेटा दिखाओ
+      _loadLocalData(); 
     }
   }
 
@@ -110,23 +109,20 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => isLoading = false);
   }
 
-  // डेटा को ऑनलाइन और लोकल दोनों जगह सेव करने का फंक्शन
   Future<void> saveData() async {
-    // 1. पहले लोकल फोन में सेव करो
     final prefs = await SharedPreferences.getInstance();
     String encoded = jsonEncode(entries.map((e) => e.toJson()).toList());
     await prefs.setString('isad_entries', encoded);
 
-    // 2. फिर ऑनलाइन क्लाउड पर भेजो
     try {
       Map<String, dynamic> dataMap = {};
       for (var e in entries) {
         dataMap[e.id.toString()] = e.toJson();
       }
       await http.put(Uri.parse(dbUrl), body: jsonEncode(dataMap));
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ऑनलाइन सेव हो गया! ✓', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green, duration: Duration(seconds: 1)));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Online Save Ho Gaya! ✓', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green, duration: Duration(seconds: 1)));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('इंटरनेट नहीं है, फोन में सेव हुआ!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.orange, duration: Duration(seconds: 2)));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No Internet! Phone me save hua.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.orange, duration: Duration(seconds: 2)));
     }
   }
 
@@ -487,7 +483,7 @@ class _AddEntryModalState extends State<AddEntryModal> {
                       widget.onSave(newEntry);
                       Navigator.pop(context);
                     },
-                    child: const Text('Save Karein', style: TextStyle(color: Color(0xFF0b0f19), fontWeight.bold, fontSize: 15)),
+                    child: const Text('Save Karein', style: TextStyle(color: Color(0xFF0b0f19), fontWeight: FontWeight.bold, fontSize: 15)),
                   ),
                 ),
               ],
