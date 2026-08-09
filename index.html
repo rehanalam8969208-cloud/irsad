@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Isad - Ration Manager</title>
+    <style>
+        /* --- UI & Design Variables --- */
+        :root {
+            --primary: #2563eb; /* Blue */
+            --bg: #0f172a; /* Dark */
+            --card-bg: #1e293b;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8; /* Cyan */
+            --danger: #ef4444;
+            --success: #22c55e;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        body { background: var(--bg); color: var(--text); display: flex; flex-direction: column; height: 100%; height: 100dvh; overflow: hidden; }
+
+        /* --- Header --- */
+        header { padding: 14px 20px; background: var(--card-bg); border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .logo { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; color: var(--accent); }
+        .header-right { font-size: 14px; color: var(--text-muted); }
+
+        /* --- Main Content Area --- */
+        #main-screen { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
+        
+        /* --- Member Input Section --- */
+        .member-input-box { background: var(--card-bg); padding: 15px; border-radius: 12px; border: 1px solid #334155; display: flex; gap: 10px; }
+        #new-member-name { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: var(--text); font-size: 16px; outline: none; }
+        #new-member-name:focus { border-color: var(--accent); }
+        .btn-add { background: var(--primary); color: white; border: none; padding: 0 20px; border-radius: 8px; font-weight: 600; font-size: 16px; cursor: pointer; }
+        .btn-add:active { transform: scale(0.97); }
+
+        /* --- Member Card / List --- */
+        #members-container { display: flex; flex-direction: column; gap: 12px; padding-bottom: 80px; /* Space for FAB */ }
+        .member-card { background: var(--card-bg); padding: 16px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); }
+        .member-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .member-name { font-size: 18px; font-weight: 700; color: var(--text); }
+        .member-total { font-size: 18px; font-weight: 800; color: var(--accent); }
+        
+        /* Purchase List inside card */
+        .purchase-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; border-top: 1px solid #334155; padding-top: 10px; }
+        .purchase-item { display: flex; justify-content: space-between; font-size: 14px; color: var(--text-muted); }
+        .purchase-item b { color: var(--text); }
+
+        /* Member Card Actions */
+        .card-actions { display: flex; gap: 8px; }
+        .btn-action { flex: 1; padding: 8px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; text-align: center; }
+        .btn-view { background: #475569; color: #f1f5f9; }
+        .btn-buy { background: var(--success); color: white; }
+        .btn-delete { background: none; color: var(--danger); font-size: 20px; padding: 0 10px;}
+
+        /* --- Floating Action Button --- */
+        .fab { position: fixed; bottom: 20px; right: 20px; width: 56px; height: 56px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3); cursor: pointer; z-index: 100; }
+        .fab:active { transform: scale(0.95); }
+
+        /* --- Modal (Pop-up) --- */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: flex-end; z-index: 200; }
+        .modal.open { display: flex; }
+        .modal-content { background: var(--card-bg); width: 100%; max-width: 500px; padding: 24px; border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; flex-direction: column; gap: 14px; max-height: 85vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .modal-title { font-size: 18px; font-weight: 700; }
+        .btn-close { background: none; border: none; color: var(--text-muted); font-size: 22px; cursor: pointer; }
+
+        .modal input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: var(--text); font-size: 16px; outline: none; }
+        .modal input:focus { border-color: var(--accent); }
+        .modal-btns { display: flex; gap: 10px; margin-top: 10px; }
+        .btn-modal-save { flex: 1; padding: 14px; border-radius: 8px; border: none; font-weight: 700; font-size: 16px; cursor: pointer; background: var(--primary); color: white; }
+
+        /* --- Details View Modal --- */
+        #details-list { display: flex; flex-direction: column; gap: 8px; }
+        .detail-row { background: #0f172a; padding: 10px; border-radius: 6px; display: flex; justify-content: space-between; font-size: 14px; }
+        .detail-row b { color: var(--success); }
+        .empty-msg { text-align: center; color: var(--text-muted); padding: 30px; font-size: 15px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">isad - Ration Manager</div>
+        <div class="header-right" id="current-date"></div>
+    </header>
+
+    <!-- MAIN SCREEN -->
+    <main id="main-screen">
+        <!-- Add Member Input -->
+        <div class="member-input-box">
+            <input type="text" id="new-member-name" placeholder="Naya Naam Jodein (jaise: Raju)">
+            <button class="btn-add" onclick="addMember()">+ Jodein</button>
+        </div>
+
+        <!-- Members List -->
+        <div id="members-container">
+            <!-- Cards will appear here -->
+            <div class="empty-msg">Abhi koi member nahi hai.<br>Upar naam likhkar jodein.</div>
+        </div>
+    </main>
+
+    <!-- ADD PURCHASE MODAL -->
+    <div class="modal" id="purchase-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title" id="purchase-modal-title">Saman Jodein</span>
+                <button class="btn-close" onclick="closePurchaseModal()">×</button>
+            </div>
+            <input type="date" id="purchase-date">
+            <input type="text" id="purchase-item" placeholder="Saman ka Naam (Optional)">
+            <input type="number" id="purchase-price" placeholder="Kitne Paise (₹)">
+            <div class="modal-btns">
+                <button class="btn-modal-save" onclick="savePurchase()">Save Karein</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW DETAILS MODAL -->
+    <div class="modal" id="details-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title" id="details-modal-title">Pura Hisab</span>
+                <button class="btn-close" onclick="closeDetailsModal()">×</button>
+            </div>
+            <div id="details-list">
+                <!-- Purchase history will appear here -->
+            </div>
+            <button class="btn-delete" onclick="clearMemberPurchases()" style="margin-top: 15px; background: var(--danger); color: white; padding: 10px; border-radius: 8px;">⚠️ Is Member ka Pura Data Delete Karein</button>
+        </div>
+    </div>
+
+    <script>
+        // --- App Logic ---
+        const container = document.getElementById('members-container');
+        const purchaseModal = document.getElementById('purchase-modal');
+        const detailsModal = document.getElementById('details-modal');
+        let members = JSON.parse(localStorage.getItem('isad_members')) || [];
+        let currentMemberId = null;
+
+        // Set current date automatically
+        document.getElementById('purchase-date').valueAsDate = new Date();
+        document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+
+        // --- Core Functions ---
+        function saveLocal() {
+            localStorage.setItem('isad_members', JSON.stringify(members));
+            renderMembers();
+        }
+
+        function addMember() {
+            const nameInput = document.getElementById('new-member-name');
+            const name = nameInput.value.trim();
+            if (!name) return alert('Kripya Naam daalein!');
+            
+            members.push({ id: Date.now(), name: name, purchases: [] });
+            nameInput.value = '';
+            saveLocal();
+        }
+
+        function deleteMember(id) {
+            if (!confirm('Kya aap is member ko delete karna chahte hain? Iska pura data udd jayega.')) return;
+            members = members.filter(m => m.id !== id);
+            saveLocal();
+        }
+
+        function openPurchaseModal(id, name) {
+            currentMemberId = id;
+            document.getElementById('purchase-modal-title').innerText = `Saman Jodein: ${name}`;
+            document.getElementById('purchase-item').value = '';
+            document.getElementById('purchase-price').value = '';
+            purchaseModal.classList.add('open');
+            document.getElementById('purchase-item').focus();
+        }
+
+        function closePurchaseModal() {
+            purchaseModal.classList.remove('open');
+            currentMemberId = null;
+        }
+
+        function savePurchase() {
+            const date = document.getElementById('purchase-date').value;
+            const item = document.getElementById('purchase-item').value.trim();
+            const priceStr = document.getElementById('purchase-price').value;
+            
+            if (!date || !priceStr) return alert('Kripya Date aur Paise bharein!');
+            const price = parseFloat(priceStr);
+            if(isNaN(price) || price <= 0) return alert('Paise sahi se bharein!');
+
+            const memberIndex = members.findIndex(m => m.id === currentMemberId);
+            if (memberIndex !== -1) {
+                members[memberIndex].purchases.push({ date, item, price });
+                saveLocal();
+                closePurchaseModal();
+            }
+        }
+
+        function openDetailsModal(id) {
+            currentMemberId = id;
+            const member = members.find(m => m.id === id);
+            if (!member) return;
+
+            document.getElementById('details-modal-title').innerText = `Hisab: ${member.name}`;
+            const detailsList = document.getElementById('details-list');
+            detailsList.innerHTML = '';
+
+            if(member.purchases.length === 0) {
+                detailsList.innerHTML = '<div class="empty-msg">Abhi koi saman nahi joda gaya hai.</div>';
+            } else {
+                // Sort purchases by date (newest first)
+                const sorted = [...member.purchases].sort((a,b) => new Date(b.date) - new Date(a.date));
+                
+                sorted.forEach(p => {
+                    const formattedDate = new Date(p.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+                    const itemDisplay = p.item || 'Ration';
+                    const row = document.createElement('div');
+                    row.className = 'detail-row';
+                    row.innerHTML = `
+                        <div>${formattedDate} <span style="color: #94a3b8; margin-left: 8px;">${itemDisplay}</span></div>
+                        <b>₹${p.price}</b>
+                    `;
+                    detailsList.appendChild(row);
+                });
+            }
+            detailsModal.classList.add('open');
+        }
+
+        function closeDetailsModal() {
+            detailsModal.classList.remove('open');
+            currentMemberId = null;
+        }
+
+        function clearMemberPurchases() {
+            if(!confirm('⚠️ Kya aap is member ka PURA history delete karna chahte hain? Ye action wapas nahi ho sakta.')) return;
+            const memberIndex = members.findIndex(m => m.id === currentMemberId);
+            if(memberIndex !== -1) {
+                members[memberIndex].purchases = [];
+                saveLocal();
+                closeDetailsModal();
+            }
+        }
+
+        // --- Render UI ---
+        function renderMembers() {
+            container.innerHTML = '';
+            if (members.length === 0) {
+                container.innerHTML = '<div class="empty-msg">Abhi koi member nahi hai.<br>Upar naam likhkar jodein.</div>';
+                return;
+            }
+
+            // Sort members alphabetically
+            const sortedMembers = [...members].sort((a,b) => a.name.localeCompare(b.name));
+
+            sortedMembers.forEach(member => {
+                const total = member.purchases.reduce((sum, p) => sum + p.price, 0);
+                const card = document.createElement('div');
+                card.className = 'member-card';
+                
+                // Get last 3 purchases for preview
+                const previewPurchases = [...member.purchases]
+                    .sort((a,b) => new Date(b.date) - new Date(a.date))
+                    .slice(0, 3);
+                
+                let purchaseHtml =
