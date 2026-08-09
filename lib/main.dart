@@ -6,54 +6,15 @@ void main() {
   runApp(const IsadApp());
 }
 
-class IsadApp extends StatefulWidget {
+class IsadApp extends StatelessWidget {
   const IsadApp({super.key});
-
-  @override
-  State<IsadApp> createState() => _IsadAppState();
-}
-
-class _IsadAppState extends State<IsadApp> {
-  ThemeMode _themeMode = ThemeMode.dark;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadTheme();
-  }
-
-  Future<void> _loadTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-    bool isDark = prefs.getBool('is_dark_theme') ?? true;
-    setState(() {
-      _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
-    });
-  }
-
-  Future<void> toggleTheme(bool isDark) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('is_dark_theme', isDark);
-    setState(() {
-      _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Isad - Ration Manager',
-      debugShowCheckedModeBanner: false,
-      themeMode: _themeMode,
+      debugShowCheckedModeBanner: false, // फालतू Debug टेक्स्ट हटाने के लिए
       theme: ThemeData(
-        brightness: Brightness.light,
-        scaffoldBackgroundColor: const Color(0xFFf8fafc),
-        primaryColor: const Color(0xFF2563eb),
-        colorScheme: const ColorScheme.light(
-          primary: Color(0xFF2563eb),
-          surface: Colors.white,
-        ),
-      ),
-      darkTheme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF0b0f19),
         primaryColor: const Color(0xFF38bdf8),
@@ -62,7 +23,7 @@ class _IsadAppState extends State<IsadApp> {
           surface: Color(0xFF1e293b),
         ),
       ),
-      home: HomeScreen(onThemeToggle: toggleTheme, isDark: _themeMode == ThemeMode.dark),
+      home: const HomeScreen(),
     );
   }
 }
@@ -94,10 +55,7 @@ class Entry {
 }
 
 class HomeScreen extends StatefulWidget {
-  final Function(bool) onThemeToggle;
-  final bool isDark;
-
-  const HomeScreen({super.key, required this.onThemeToggle, required this.isDark});
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -128,17 +86,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final prefs = await SharedPreferences.getInstance();
     String encoded = jsonEncode(entries.map((e) => e.toJson()).toList());
     await prefs.setString('isad_entries', encoded);
-    setState(() {});
   }
 
   void _showAddModal() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: const Color(0xFF1e293b),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) => AddEntryModal(
         existingEntries: entries,
         onSave: (newEntry) {
@@ -156,15 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
     double grandTotal = entries.fold(0, (sum, item) => sum + item.price);
 
     final List<Widget> pages = [
-      DashboardTab(
-        entries: entries,
-        onDelete: (id) {
-          setState(() {
-            entries.removeWhere((e) => e.id == id);
-          });
-          saveData();
-        },
-      ),
+      DashboardTab(entries: entries),
       HistoryTab(
         entries: entries,
         onDelete: (id) {
@@ -178,53 +125,54 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Isad - Ration Khata', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        backgroundColor: const Color(0xFF1e293b),
+        elevation: 1,
+        title: const Text('Isad - Ration Khata', style: TextStyle(color: Color(0xFF38bdf8), fontWeight: FontWeight.bold, fontSize: 18)),
         actions: [
-          IconButton(
-            icon: Icon(widget.isDark ? Icons.light_mode : Icons.dark_mode),
-            onPressed: () => widget.onThemeToggle(!widget.isDark),
-          ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 14.0),
-            child: Text('₹$grandTotal', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16)),
+            padding: const EdgeInsets.only(right: 20.0),
+            child: Center(
+              child: Text('Total: ₹$grandTotal', style: const TextStyle(color: Color(0xFF22c55e), fontWeight: FontWeight.bold, fontSize: 15)),
+            ),
           ),
         ],
       ),
       body: pages[_currentIndex],
       bottomNavigationBar: Container(
         height: 65,
-        color: Theme.of(context).colorScheme.surface,
+        decoration: const BoxDecoration(
+          color: Color(0xFF1e293b),
+          border: Border(top: BorderSide(color: Color(0xFF334155), width: 1)),
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            IconButton(
-              icon: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.home, color: _currentIndex == 0 ? Theme.of(context).colorScheme.primary : Colors.grey),
-                  const Text('Home', style: TextStyle(fontSize: 10))
-                ],
-              ),
-              onPressed: () => setState(() => _currentIndex = 0),
-            ),
+            _buildNavItem(Icons.home, 'Home', 0),
             FloatingActionButton(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              elevation: 2,
+              backgroundColor: const Color(0xFF38bdf8),
+              elevation: 4,
               onPressed: _showAddModal,
-              child: const Icon(Icons.add, color: Colors.white, size: 30),
+              child: const Icon(Icons.add, color: Color(0xFF0b0f19), size: 30),
             ),
-            IconButton(
-              icon: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.table_chart, color: _currentIndex == 1 ? Theme.of(context).colorScheme.primary : Colors.grey),
-                  const Text('Sheet', style: TextStyle(fontSize: 10))
-                ],
-              ),
-              onPressed: () => setState(() => _currentIndex = 1),
-            ),
+            _buildNavItem(Icons.table_chart, 'Sheet', 1),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(IconData icon, String label, int index) {
+    bool isActive = _currentIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _currentIndex = index),
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: isActive ? const Color(0xFF38bdf8) : const Color(0xFF94a3b8), size: 24),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(fontSize: 11, color: isActive ? const Color(0xFF38bdf8) : const Color(0xFF94a3b8), fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
+        ],
       ),
     );
   }
@@ -232,9 +180,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class DashboardTab extends StatelessWidget {
   final List<Entry> entries;
-  final Function(int) onDelete;
 
-  const DashboardTab({super.key, required this.entries, required this.onDelete});
+  const DashboardTab({super.key, required this.entries});
 
   @override
   Widget build(BuildContext context) {
@@ -243,38 +190,43 @@ class DashboardTab extends StatelessWidget {
       memberTotals[e.name] = (memberTotals[e.name] ?? 0) + e.price;
     }
 
-    if (entries.isEmpty) {
-      return const Center(child: Text('Data uplabdh nahi hai.\n(+) dabakar entry jodein.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)));
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(15),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Members Total Summary', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 10),
-        ...memberTotals.entries.map((entry) => Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.grey.withOpacity(0.2)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(entry.key, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
-                      const Text('Total Kharcha', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    ],
-                  ),
-                  Text('₹${entry.value}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
-                ],
-              ),
-            )),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(15, 15, 15, 5),
+          child: Text('Members Total Summary', style: TextStyle(color: Color(0xFF94a3b8), fontSize: 14, fontWeight: FontWeight.bold)),
+        ),
+        Expanded(
+          child: entries.isEmpty
+              ? const Center(child: Text('Abhi koi data nahi hai.\nNiche (+) dabakar entry karein.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF94a3b8))))
+              : ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 15),
+                  children: memberTotals.entries.map((entry) => Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1e293b),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFF334155)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(entry.key, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFFf8fafc))),
+                            const SizedBox(height: 4),
+                            const Text('Total Kharcha / Hisab', style: TextStyle(fontSize: 13, color: Color(0xFF94a3b8))),
+                          ],
+                        ),
+                        Text('₹${entry.value}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF38bdf8))),
+                      ],
+                    ),
+                  )).toList(),
+                ),
+        ),
       ],
     );
   }
@@ -288,44 +240,54 @@ class HistoryTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (entries.isEmpty) {
-      return const Center(child: Text('Koi history nahi hai.', style: TextStyle(color: Colors.grey)));
-    }
-
     List<Entry> sorted = List.from(entries)..sort((a, b) => b.date.compareTo(a.date));
 
-    return Padding(
-      padding: const EdgeInsets.all(15),
-      child: ListView(
-        children: [
-          const Text('Sabhi Entries ka Record', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columns: const [
-                DataColumn(label: Text('Date')),
-                DataColumn(label: Text('Naam')),
-                DataColumn(label: Text('Saman')),
-                DataColumn(label: Text('₹')),
-                DataColumn(label: Text('Action')),
-              ],
-              rows: sorted
-                  .map((e) => DataRow(cells: [
-                        DataCell(Text(e.date)),
-                        DataCell(Text(e.name, style: const TextStyle(fontWeight: FontWeight.bold))),
-                        DataCell(Text(e.item)),
-                        DataCell(Text('₹${e.price}', style: const TextStyle(fontWeight: FontWeight.bold))),
-                        DataCell(IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red, size: 18),
-                          onPressed: () => onDelete(e.id),
-                        )),
-                      ]))
-                  .toList(),
-            ),
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(15, 15, 15, 5),
+          child: Text('Sabhi Entries ka Record', style: TextStyle(color: Color(0xFF94a3b8), fontSize: 14, fontWeight: FontWeight.bold)),
+        ),
+        Expanded(
+          child: entries.isEmpty
+              ? const Center(child: Text('Koi history available nahi hai.', style: TextStyle(color: Color(0xFF94a3b8))))
+              : Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15),
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1e293b),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF334155)),
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        headingRowColor: WidgetStateProperty.all(const Color(0xFF0f172a)),
+                        columns: const [
+                          DataColumn(label: Text('Date', style: TextStyle(color: Color(0xFF38bdf8), fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('Naam', style: TextStyle(color: Color(0xFF38bdf8), fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('Saman', style: TextStyle(color: Color(0xFF38bdf8), fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('₹', style: TextStyle(color: Color(0xFF38bdf8), fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('')),
+                        ],
+                        rows: sorted.map((e) => DataRow(cells: [
+                          DataCell(Text(e.date, style: const TextStyle(color: Color(0xFFf8fafc)))),
+                          DataCell(Text(e.name, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFf8fafc)))),
+                          DataCell(Text(e.item, style: const TextStyle(color: Color(0xFFf8fafc)))),
+                          DataCell(Text('₹${e.price}', style: const TextStyle(color: Color(0xFF38bdf8), fontWeight: FontWeight.bold))),
+                          DataCell(IconButton(
+                            icon: const Icon(Icons.close, color: Color(0xFFef4444), size: 18),
+                            onPressed: () => onDelete(e.id),
+                          )),
+                        ])).toList(),
+                      ),
+                    ),
+                  ),
+                ),
+        ),
+      ],
     );
   }
 }
@@ -357,12 +319,13 @@ class _AddEntryModalState extends State<AddEntryModal> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Naya Hisab Jodein', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Naya Hisab Jodein', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFf8fafc))),
             const SizedBox(height: 15),
             if (existingNames.isNotEmpty) ...[
               DropdownButtonFormField<String>(
-                dropdownColor: Theme.of(context).colorScheme.surface,
-                decoration: const InputDecoration(labelText: 'Purana Naam Chunein', border: OutlineInputBorder()),
+                dropdownColor: const Color(0xFF1e293b),
+                style: const TextStyle(color: Color(0xFFf8fafc)),
+                decoration: const InputDecoration(labelText: 'Member ka Naam (Chunein)', border: OutlineInputBorder(), labelStyle: TextStyle(color: Color(0xFF94a3b8))),
                 items: existingNames.map((n) => DropdownMenuItem(value: n, child: Text(n))).toList(),
                 onChanged: (val) {
                   if (val != null) nameController.text = val;
@@ -372,13 +335,15 @@ class _AddEntryModalState extends State<AddEntryModal> {
             ],
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(labelText: 'Member ka Naam', border: OutlineInputBorder()),
+              style: const TextStyle(color: Color(0xFFf8fafc)),
+              decoration: const InputDecoration(labelText: 'Naya Naam Likhein', border: OutlineInputBorder(), labelStyle: TextStyle(color: Color(0xFF94a3b8))),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: TextEditingController(text: selectedDate),
               readOnly: true,
-              decoration: const InputDecoration(labelText: 'Date', border: OutlineInputBorder()),
+              style: const TextStyle(color: Color(0xFFf8fafc)),
+              decoration: const InputDecoration(labelText: 'Date', border: OutlineInputBorder(), labelStyle: TextStyle(color: Color(0xFF94a3b8))),
               onTap: () async {
                 DateTime? picked = await showDatePicker(
                   context: context,
@@ -396,37 +361,49 @@ class _AddEntryModalState extends State<AddEntryModal> {
             const SizedBox(height: 10),
             TextField(
               controller: itemController,
-              decoration: const InputDecoration(labelText: 'Saman ka Naam (Optional)', border: OutlineInputBorder()),
+              style: const TextStyle(color: Color(0xFFf8fafc)),
+              decoration: const InputDecoration(labelText: 'Saman ka Naam (Optional)', border: OutlineInputBorder(), labelStyle: TextStyle(color: Color(0xFF94a3b8))),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: priceController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Kitne Paise (₹)', border: OutlineInputBorder()),
+              style: const TextStyle(color: Color(0xFFf8fafc)),
+              decoration: const InputDecoration(labelText: 'Kitne Paise (₹)', border: OutlineInputBorder(), labelStyle: TextStyle(color: Color(0xFF94a3b8))),
             ),
             const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.primary, foregroundColor: Colors.white),
-                onPressed: () {
-                  if (nameController.text.trim().isEmpty || priceController.text.trim().isEmpty) return;
-                  double? price = double.tryParse(priceController.text);
-                  if (price == null || price <= 0) return;
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), side: const BorderSide(color: Color(0xFF334155))),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Radd Karein', style: TextStyle(color: Color(0xFFf8fafc), fontWeight: FontWeight.bold, fontSize: 15)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF38bdf8), padding: const EdgeInsets.symmetric(vertical: 14)),
+                    onPressed: () {
+                      if (nameController.text.trim().isEmpty || priceController.text.trim().isEmpty) return;
+                      double? price = double.tryParse(priceController.text);
+                      if (price == null || price <= 0) return;
 
-                  Entry newEntry = Entry(
-                    id: DateTime.now().millisecondsSinceEpoch,
-                    name: nameController.text.trim(),
-                    date: selectedDate,
-                    item: itemController.text.trim().isEmpty ? 'Ration Saman' : itemController.text.trim(),
-                    price: price,
-                  );
-
-                  widget.onSave(newEntry);
-                  Navigator.pop(context);
-                },
-                child: const Text('Save Karein', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              ),
+                      Entry newEntry = Entry(
+                        id: DateTime.now().millisecondsSinceEpoch,
+                        name: nameController.text.trim(),
+                        date: selectedDate,
+                        item: itemController.text.trim().isEmpty ? 'Ration Saman' : itemController.text.trim(),
+                        price: price,
+                      );
+                      widget.onSave(newEntry);
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Save Karein', style: TextStyle(color: Color(0xFF0b0f19), fontWeight: FontWeight.bold, fontSize: 15)),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 20),
           ],
