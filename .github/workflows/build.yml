@@ -24,10 +24,14 @@ jobs:
       with:
         channel: 'stable'
 
-    - name: Fresh Android Setup (Fixes assembleRelease Error)
+    - name: Fresh Android Setup
       run: |
         rm -rf android
         flutter create --platforms android .
+
+    - name: Add Internet Permission (Ye app ko net se jodega)
+      run: |
+        sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
 
     - name: Install Dependencies
       run: flutter pub get
