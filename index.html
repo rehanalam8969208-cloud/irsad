@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Isad - Ration Manager</title>
+    <style>
+        :root {
+            --bg: #0b0f19;
+            --card-bg: #1e293b;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --primary: #2563eb;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --border: #334155;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        body { background: var(--bg); color: var(--text); height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+
+        header { padding: 14px 20px; background: var(--card-bg); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .logo { font-size: 18px; font-weight: 800; color: var(--accent); }
+        .total-budget { font-size: 14px; color: var(--text-muted); }
+        .total-budget b { color: var(--success); }
+
+        .tab-content { flex: 1; overflow-y: auto; padding: 15px 15px 80px 15px; display: none; }
+        .tab-content.active { display: flex; flex-direction: column; gap: 12px; }
+
+        .dash-card { background: var(--card-bg); border: 1px solid var(--border); padding: 16px; border-radius: 14px; display: flex; justify-content: space-between; align-items: center; }
+        .dash-info h3 { font-size: 17px; font-weight: 700; color: var(--text); }
+        .dash-info p { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+        .dash-amount { font-size: 18px; font-weight: 800; color: var(--accent); }
+
+        .excel-table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+        .excel-table th, .excel-table td { padding: 12px 10px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--border); }
+        .excel-table th { background: #0f172a; color: var(--accent); font-weight: 700; }
+        .excel-table td { color: var(--text); }
+
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 65px; background: var(--card-bg); border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: center; z-index: 100; }
+        .nav-item { background: none; border: none; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; flex: 1; }
+        .nav-item.active { color: var(--accent); font-weight: bold; }
+        .nav-item span.icon { font-size: 20px; }
+
+        .nav-fab-container { position: relative; flex: 1; display: flex; justify-content: center; }
+        .nav-fab { position: absolute; top: -22px; width: 50px; height: 50px; background: var(--accent); color: #0f172a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; border: none; box-shadow: 0 4px 10px rgba(56, 189, 248, 0.4); cursor: pointer; }
+        .nav-fab:active { transform: scale(0.92); }
+
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: flex-end; z-index: 300; }
+        .modal.open { display: flex; }
+        .modal-box { background: var(--card-bg); width: 100%; max-width: 500px; padding: 24px; border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; flex-direction: column; gap: 14px; border: 1px solid var(--border); max-height: 85vh; overflow-y: auto; }
+        .modal-box h3 { font-size: 18px; font-weight: 700; }
+        .modal-box input, .modal-box select { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: #0f172a; color: var(--text); font-size: 15px; outline: none; }
+        .modal-box input:focus { border-color: var(--accent); }
+        .modal-btns { display: flex; gap: 10px; margin-top: 5px; }
+        .modal-btns button { flex: 1; padding: 14px; border-radius: 10px; border: none; font-weight: bold; font-size: 15px; cursor: pointer; }
+        .btn-save { background: var(--accent); color: #0f172a; }
+        .btn-cancel { background: var(--border); color: var(--text); }
+
+        .empty-state { text-align: center; color: var(--text-muted); margin-top: 40px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">Isad - Ration Khata</div>
+        <div class="total-budget">Total: <b id="header-total">₹0</b></div>
+    </header>
+
+    <div id="tab-home" class="tab-content active">
+        <div style="font-size: 14px; font-weight: bold; color: var(--text-muted); margin-bottom: 2px;">Members Total Summary</div>
+        <div id="dashboard-container">
+            <div class="empty-state">Abhi koi data nahi hai. Niche (+) dabakar entry karein.</div>
+        </div>
+    </div>
+
+    <div id="tab-history" class="tab-content">
+        <div style="font-size: 14px; font-weight: bold; color: var(--text-muted); margin-bottom: 2px;">Sabhi Entries ka Record</div>
+        <div id="history-container">
+            <div class="empty-state">Koi history available nahi hai.</div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="switchTab('home', this)">
+            <span class="icon">🏠</span>
+            <span>Home</span>
+        </button>
+        
+        <div class="nav-fab-container">
+            <button class="nav-fab" onclick="openModal()">+</button>
+        </div>
+
+        <button class="nav-item" onclick="switchTab('history', this)">
+            <span class="icon">📊</span>
+            <span>Sheet / History</span>
+        </button>
+    </nav>
+
+    <div class="modal" id="entry-modal">
+        <div class="modal-box">
+            <h3>Naya Hisab Jodein</h3>
+            
+            <label style="font-size: 12px; color: var(--text-muted);">Member ka Naam</label>
+            <select id="member-select" onchange="checkNewMemberInput()" style="margin-bottom: -6px;">
+                <option value="">+ Naya Naam Likhein...</option>
+            </select>
+            <input type="text" id="custom-member-name" placeholder="Member ka Naam (jaise: Raju)">
+
+            <label style="font-size: 12px; color: var(--text-muted);">Date</label>
+            <input type="date" id="entry-date">
+
+            <label style="font-size: 12px; color: var(--text-muted);">Saman ka Naam (Optional)</label>
+            <input type="text" id="entry-item" placeholder="Jaise: Atta, Tel, Chawal">
+
+            <label style="font-size: 12px; color: var(--text-muted);">Kitne Paise (₹)</label>
+            <input type="number" id="entry-price" placeholder="Rupaye dalein">
+
+            <div class="modal-btns">
+                <button class="btn-cancel" onclick="closeModal()">Radd Karein</button>
+                <button class="btn-save" onclick="saveEntry()">Save Karein</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let entries = JSON.parse(localStorage.getItem('isad_entries')) || [];
+        document.getElementById('entry-date').valueAsDate = new Date();
+
+        function switchTab(tabName, btnElement) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+            if(tabName === 'home') {
+                document.getElementById('tab-home').classList.add('active');
+            } else {
+                document.getElementById('tab-history').classList.add('active');
+                renderHistory();
+            }
+            btnElement.classList.add('active');
+        }
+
+        function openModal() {
+            document.getElementById('custom-member-name').value = '';
+            document.getElementById('entry-item').value = '';
+            document.getElementById('entry-price').value = '';
+            updateMemberDropdown();
+            document.getElementById('entry-modal').classList.add('open');
+        }
+
+        function closeModal() {
+            document.getElementById('entry-modal').classList.remove('open');
+        }
+
+        function updateMemberDropdown() {
+            const select = document.getElementById('member-select');
+            select.innerHTML = '<option value="">+ Naya Naam Likhein...</option>';
+            const names = [...new Set(entries.map(e => e.name))];
+            names.forEach(name => {
+                let opt = document.createElement('option');
+                opt.value = name;
+                opt.innerText = name;
+                select.appendChild(opt);
+            });
+            checkNewMemberInput();
+        }
+
+        function checkNewMemberInput() {
+            const selectVal = document.getElementById('member-select').value;
+            const customInput = document.getElementById('custom-member-name');
+            if(selectVal === "") {
+                customInput.style.display = 'block';
+                customInput.focus();
+            } else {
+                customInput.style.display = 'none';
+                customInput.value = selectVal;
+            }
+        }
+
+        function saveEntry() {
+            let name = document.getElementById('custom-member-name').value.trim();
+            const selectVal = document.getElementById('member-select').value;
+            if(selectVal !== "") name = selectVal;
+
+            const date = document.getElementById('entry-date').value;
+            const item = document.getElementById('entry-item').value.trim() || 'Ration Saman';
+            const price = parseFloat(document.getElementById('entry-price').value);
+
+            if(!name) return alert('Kripya Member ka naam likhein!');
+            if(!date || isNaN(price) || price <= 0) return alert('Kripya Date aur sahi Amount daalein!');
+
+            entries.push({ id: Date.now(), name, date, item, price });
+            localStorage.setItem('isad_entries', JSON.stringify(entries));
+            
+            closeModal();
+            renderDashboard();
+        }
+
+        function deleteEntry(id) {
+            if(!confirm('Kya aap is entry को delete karna chahte hain?')) return;
+            entries = entries.filter(e => e.id !== id);
+            localStorage.setItem('isad_entries', JSON.stringify(entries));
+            renderDashboard();
+            renderHistory();
+        }
+
+        function renderDashboard() {
+            const container = document.getElementById('dashboard-container');
+            container.innerHTML = '';
+
+            if(entries.length === 0) {
+                container.innerHTML = `<div class="empty-state">Abhi koi data nahi hai. Niche (+) dabakar entry karein.</div>`;
+                document.getElementById('header-total').innerText = '₹0';
+                return;
+            }
+
+            let memberTotals = {};
+            let grandTotal = 0;
+
+            entries.forEach(e => {
+                grandTotal += e.price;
+                if(!memberTotals[e.name]) memberTotals[e.name] = 0;
+                memberTotals[e.name] += e.price;
+            });
+
+            document.getElementById('header-total').innerText = '₹' + grandTotal;
+
+            Object.keys(memberTotals).forEach(name => {
+                let card = document.createElement('div');
+                card.className = 'dash-card';
+                card.innerHTML = `
+                    <div class="dash-info">
+                        <h3>${name}</h3>
+                        <p>Total Kharcha / Hisab</p>
+                    </div>
+                    <div class="dash-amount">₹${memberTotals[name]}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history-container');
+            container.innerHTML = '';
+
+            if(entries.length === 0) {
+                container.innerHTML = `<div class="empty-state">Koi history available nahi hai.</div>`;
+                return;
+            }
+
+            let table = document.createElement('table');
+            table.className = 'excel-table';
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Naam</th>
+                        <th>Saman</th>
+                        <th>₹</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="history-tbody"></tbody>
+            `;
+            container.appendChild(table);
+
+            const tbody = document.getElementById('history-tbody');
+            let sorted = [...entries].sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            sorted.forEach(e => {
+                let formattedDate = new Date(e.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${formattedDate}</td>
+                    <td><b>${e.name}</b></td>
+                    <td>${e.item}</td>
+                    <td style="color: var(--accent); font-weight: bold;">₹${e.price}</td>
+                    <td><button onclick="deleteEntry(${e.id})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px;">❌</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        renderDashboard();
+    </script>
+</body>
+</html>
