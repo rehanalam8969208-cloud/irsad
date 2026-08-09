@@ -207,10 +207,11 @@ class _HomeScreenState extends State<HomeScreen> {
     loadData();
   }
 
+  // डेटा लाने का फिक्स किया हुआ फंक्शन
   Future<void> loadData() async {
     try {
       final response = await http.get(Uri.parse(dbUrl));
-      if (response.statusCode == 200 && response.body != 'null') {
+      if (response.statusCode == 200 && response.body != 'null' && response.body != '{}') {
         final Map<String, dynamic> data = jsonDecode(response.body);
         List<Entry> loaded = [];
         data.forEach((key, value) {
@@ -220,15 +221,37 @@ class _HomeScreenState extends State<HomeScreen> {
           entries = loaded;
           isLoading = false;
         });
+        // इंटरनेट से डेटा आने के बाद उसे फोन में भी बैकअप कर लें
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('isad_entries', jsonEncode(entries.map((e) => e.toJson()).toList()));
       } else {
-        setState(() => isLoading = false);
+        _loadLocalBackup();
       }
     } catch (e) {
-      setState(() => isLoading = false);
+      _loadLocalBackup();
     }
   }
 
+  // अगर नेट स्लो हो या काम न करे, तो यह फोन का बैकअप दिखाएगा
+  Future<void> _loadLocalBackup() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? data = prefs.getString('isad_entries');
+    if (data != null) {
+      List decoded = jsonDecode(data);
+      setState(() {
+        entries = decoded.map((e) => Entry.fromJson(e)).toList();
+      });
+    }
+    setState(() => isLoading = false);
+  }
+
   Future<void> saveData() async {
+    // 1. फोन में सेव करो
+    final prefs = await SharedPreferences.getInstance();
+    String encoded = jsonEncode(entries.map((e) => e.toJson()).toList());
+    await prefs.setString('isad_entries', encoded);
+
+    // 2. ऑनलाइन सेव करो
     try {
       Map<String, dynamic> dataMap = {};
       for (var e in entries) {
@@ -237,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
       await http.put(Uri.parse(dbUrl), body: jsonEncode(dataMap));
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Online Save Ho Gaya! ✓', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green, duration: Duration(seconds: 1)));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Internet error! Data save nahi hua.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red, duration: Duration(seconds: 2)));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Internet error! Sirf phone me save hua.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.orange, duration: Duration(seconds: 2)));
     }
   }
 
