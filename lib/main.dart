@@ -13,7 +13,7 @@ class IsadApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Isad - Ration Manager',
-      debugShowCheckedModeBanner: false, // फालतू Debug टेक्स्ट हटाने के लिए
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF0b0f19),
@@ -106,14 +106,19 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  String _formatPrice(double price) {
+    return price % 1 == 0 ? price.toInt().toString() : price.toStringAsFixed(2);
+  }
+
   @override
   Widget build(BuildContext context) {
     double grandTotal = entries.fold(0, (sum, item) => sum + item.price);
 
     final List<Widget> pages = [
-      DashboardTab(entries: entries),
+      DashboardTab(entries: entries, formatPrice: _formatPrice),
       HistoryTab(
         entries: entries,
+        formatPrice: _formatPrice,
         onDelete: (id) {
           setState(() {
             entries.removeWhere((e) => e.id == id);
@@ -132,30 +137,39 @@ class _HomeScreenState extends State<HomeScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 20.0),
             child: Center(
-              child: Text('Total: ₹$grandTotal', style: const TextStyle(color: Color(0xFF22c55e), fontWeight: FontWeight.bold, fontSize: 15)),
+              child: Text('Total: ₹${_formatPrice(grandTotal)}', style: const TextStyle(color: Color(0xFF22c55e), fontWeight: FontWeight.bold, fontSize: 15)),
             ),
           ),
         ],
       ),
       body: pages[_currentIndex],
-      bottomNavigationBar: Container(
-        height: 65,
-        decoration: const BoxDecoration(
-          color: Color(0xFF1e293b),
-          border: Border(top: BorderSide(color: Color(0xFF334155), width: 1)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildNavItem(Icons.home, 'Home', 0),
-            FloatingActionButton(
-              backgroundColor: const Color(0xFF38bdf8),
-              elevation: 4,
-              onPressed: _showAddModal,
-              child: const Icon(Icons.add, color: Color(0xFF0b0f19), size: 30),
-            ),
-            _buildNavItem(Icons.table_chart, 'Sheet', 1),
-          ],
+      
+      // Floating Action Button (बीच वाला गोल बटन)
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xFF38bdf8),
+        shape: const CircleBorder(), // बटन को एकदम गोल बनाने के लिए
+        elevation: 4,
+        onPressed: _showAddModal,
+        child: const Icon(Icons.add, color: Color(0xFF0b0f19), size: 32),
+      ),
+      // बटन को नेविगेशन बार के बीच में सेट करने के लिए
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      
+      // Notch वाला Bottom Navigation Bar
+      bottomNavigationBar: BottomAppBar(
+        color: const Color(0xFF1e293b),
+        shape: const CircularNotchedRectangle(), // कट (Notch) बनाने के लिए
+        notchMargin: 8.0, // बटन और बार के बीच की जगह
+        child: SizedBox(
+          height: 65, // बार की ऊंचाई
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(Icons.home, 'Home', 0),
+              const SizedBox(width: 48), // बीच में FAB के लिए खाली जगह
+              _buildNavItem(Icons.table_chart, 'Sheet', 1),
+            ],
+          ),
         ),
       ),
     );
@@ -168,10 +182,11 @@ class _HomeScreenState extends State<HomeScreen> {
       behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center, // आइकन को हल्का ऊपर और सेंटर में करने के लिए
         children: [
-          Icon(icon, color: isActive ? const Color(0xFF38bdf8) : const Color(0xFF94a3b8), size: 24),
+          Icon(icon, color: isActive ? const Color(0xFF38bdf8) : const Color(0xFF94a3b8), size: 26),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 11, color: isActive ? const Color(0xFF38bdf8) : const Color(0xFF94a3b8), fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
+          Text(label, style: TextStyle(fontSize: 12, color: isActive ? const Color(0xFF38bdf8) : const Color(0xFF94a3b8), fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
         ],
       ),
     );
@@ -180,8 +195,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class DashboardTab extends StatelessWidget {
   final List<Entry> entries;
+  final String Function(double) formatPrice;
 
-  const DashboardTab({super.key, required this.entries});
+  const DashboardTab({super.key, required this.entries, required this.formatPrice});
 
   @override
   Widget build(BuildContext context) {
@@ -201,7 +217,7 @@ class DashboardTab extends StatelessWidget {
           child: entries.isEmpty
               ? const Center(child: Text('Abhi koi data nahi hai.\nNiche (+) dabakar entry karein.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF94a3b8))))
               : ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 15),
+                  padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
                   children: memberTotals.entries.map((entry) => Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(16),
@@ -221,7 +237,7 @@ class DashboardTab extends StatelessWidget {
                             const Text('Total Kharcha / Hisab', style: TextStyle(fontSize: 13, color: Color(0xFF94a3b8))),
                           ],
                         ),
-                        Text('₹${entry.value}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF38bdf8))),
+                        Text('₹${formatPrice(entry.value)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF38bdf8))),
                       ],
                     ),
                   )).toList(),
@@ -235,55 +251,87 @@ class DashboardTab extends StatelessWidget {
 class HistoryTab extends StatelessWidget {
   final List<Entry> entries;
   final Function(int) onDelete;
+  final String Function(double) formatPrice;
 
-  const HistoryTab({super.key, required this.entries, required this.onDelete});
+  const HistoryTab({super.key, required this.entries, required this.onDelete, required this.formatPrice});
 
   @override
   Widget build(BuildContext context) {
     List<Entry> sorted = List.from(entries)..sort((a, b) => b.date.compareTo(a.date));
 
+    // Custom Responsive Row Style (बिना Horizontal Scroll के)
+    const TextStyle headerStyle = TextStyle(color: Color(0xFF38bdf8), fontWeight: FontWeight.bold, fontSize: 13);
+    const TextStyle rowStyle = TextStyle(color: Color(0xFFf8fafc), fontSize: 13);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
-          padding: EdgeInsets.fromLTRB(15, 15, 15, 5),
+          padding: EdgeInsets.fromLTRB(15, 15, 15, 10),
           child: Text('Sabhi Entries ka Record', style: TextStyle(color: Color(0xFF94a3b8), fontSize: 14, fontWeight: FontWeight.bold)),
         ),
         Expanded(
           child: entries.isEmpty
               ? const Center(child: Text('Koi history available nahi hai.', style: TextStyle(color: Color(0xFF94a3b8))))
-              : Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 15),
-                  child: Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1e293b),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF334155)),
-                    ),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: DataTable(
-                        headingRowColor: WidgetStateProperty.all(const Color(0xFF0f172a)),
-                        columns: const [
-                          DataColumn(label: Text('Date', style: TextStyle(color: Color(0xFF38bdf8), fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('Naam', style: TextStyle(color: Color(0xFF38bdf8), fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('Saman', style: TextStyle(color: Color(0xFF38bdf8), fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('₹', style: TextStyle(color: Color(0xFF38bdf8), fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('')),
-                        ],
-                        rows: sorted.map((e) => DataRow(cells: [
-                          DataCell(Text(e.date, style: const TextStyle(color: Color(0xFFf8fafc)))),
-                          DataCell(Text(e.name, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFf8fafc)))),
-                          DataCell(Text(e.item, style: const TextStyle(color: Color(0xFFf8fafc)))),
-                          DataCell(Text('₹${e.price}', style: const TextStyle(color: Color(0xFF38bdf8), fontWeight: FontWeight.bold))),
-                          DataCell(IconButton(
-                            icon: const Icon(Icons.close, color: Color(0xFFef4444), size: 18),
-                            onPressed: () => onDelete(e.id),
-                          )),
-                        ])).toList(),
+              : Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1e293b),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF334155)),
+                  ),
+                  child: Column(
+                    children: [
+                      // Table Header
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF0f172a),
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Expanded(flex: 3, child: Text('Date', style: headerStyle)),
+                            Expanded(flex: 3, child: Text('Naam', style: headerStyle)),
+                            Expanded(flex: 3, child: Text('Saman', style: headerStyle)),
+                            Expanded(flex: 2, child: Text('₹', style: headerStyle)),
+                            SizedBox(width: 24), // डिलीट आइकॉन के लिए जगह
+                          ],
+                        ),
                       ),
-                    ),
+                      // Table List (Responsive)
+                      Expanded(
+                        child: ListView.separated(
+                          padding: EdgeInsets.zero,
+                          itemCount: sorted.length,
+                          separatorBuilder: (context, index) => const Divider(color: Color(0xFF334155), height: 1),
+                          itemBuilder: (context, index) {
+                            final e = sorted[index];
+                            // तारीख को छोटा दिखाना (ताकि स्क्रीन पर फिट बैठे)
+                            String shortDate = e.date;
+                            if (shortDate.length == 10) {
+                              shortDate = shortDate.substring(5); // YYYY-MM-DD से MM-DD कर दिया
+                            }
+
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                              child: Row(
+                                children: [
+                                  Expanded(flex: 3, child: Text(shortDate, style: rowStyle)),
+                                  Expanded(flex: 3, child: Text(e.name, style: rowStyle.copyWith(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                  Expanded(flex: 3, child: Text(e.item, style: rowStyle, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                  Expanded(flex: 2, child: Text('₹${formatPrice(e.price)}', style: rowStyle.copyWith(color: const Color(0xFF38bdf8), fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                  GestureDetector(
+                                    onTap: () => onDelete(e.id),
+                                    child: const Icon(Icons.close, color: Color(0xFFef4444), size: 20),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
         ),
