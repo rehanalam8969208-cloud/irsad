@@ -24,18 +24,11 @@ jobs:
       with:
         channel: 'stable'
 
-    - name: Create Android Platform
+    - name: Reset Android Folder (Fixes Gradle Error)
       run: |
-        if [ ! -d "android" ]; then
-          flutter create --platforms android .
-        fi
-
-    - name: Add Internet Permission
-      run: |
-        MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
-        if [ -f "$MANIFEST_PATH" ] && ! grep -q "android.permission.INTERNET" "$MANIFEST_PATH"; then
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' "$MANIFEST_PATH"
-        fi
+        rm -rf android
+        flutter create --platforms android .
+        sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
 
     - name: Install Dependencies
       run: flutter pub get
@@ -46,5 +39,5 @@ jobs:
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: Isad-Ration-App
+        name: Isad-Hisab-App
         path: build/app/outputs/flutter-apk/app-release.apk
