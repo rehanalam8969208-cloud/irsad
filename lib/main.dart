@@ -7,64 +7,31 @@ void main() {
   runApp(const IsadApp());
 }
 
-class IsadApp extends StatefulWidget {
+class IsadApp extends StatelessWidget {
   const IsadApp({super.key});
 
+  // तेरी Firebase Web API Key
   static const String apiKey = 'AIzaSyA1Dg_ospNbgXatGj4xnWq-1njNc5Y0dCY'; 
-
-  @override
-  State<IsadApp> createState() => _IsadAppState();
-
-  static _IsadAppState of(BuildContext context) => context.findAncestorStateOfType<_IsadAppState>()!;
-}
-
-class _IsadAppState extends State<IsadApp> {
-  ThemeMode _themeMode = ThemeMode.dark;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadTheme();
-  }
-
-  Future<void> _loadTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-    bool isDark = prefs.getBool('is_dark_theme') ?? true;
-    setState(() {
-      _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
-    });
-  }
-
-  Future<void> toggleTheme(bool isDark) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('is_dark_theme', isDark);
-    setState(() {
-      _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Isad - Ration Manager',
+      title: 'Isad Khata',
       debugShowCheckedModeBanner: false,
-      themeMode: _themeMode,
       theme: ThemeData(
-        brightness: Brightness.light,
-        scaffoldBackgroundColor: const Color(0xFFf8fafc),
-        primaryColor: const Color(0xFF2563eb),
-        colorScheme: const ColorScheme.light(
-          primary: Color(0xFF2563eb),
-          surface: Colors.white,
-        ),
-      ),
-      darkTheme: ThemeData(
+        useMaterial3: true, // एकदम मॉडर्न लुक के लिए
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0b0f19),
-        primaryColor: const Color(0xFF38bdf8),
+        scaffoldBackgroundColor: const Color(0xFF121212), // प्रीमियम डार्क बैकग्राउंड
+        primaryColor: const Color(0xFF6366F1), // मॉडर्न इंडिगो कलर
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF38bdf8),
-          surface: Color(0xFF1e293b),
+          primary: Color(0xFF6366F1),
+          secondary: Color(0xFF10B981), // पैसों के लिए एमराल्ड ग्रीन
+          surface: Color(0xFF1E1E1E), // कार्ड्स का कलर
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF121212),
+          elevation: 0,
+          centerTitle: true,
         ),
       ),
       home: const AuthCheck(),
@@ -102,36 +69,38 @@ class _AuthCheckState extends State<AuthCheck> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: CircularProgressIndicator(color: Color(0xFF6366F1))));
     }
     if (token != null && uid != null) {
       return HomeScreen(token: token!, uid: uid!);
     }
-    return const LoginScreen();
+    return const AuthScreen();
   }
 }
 
-// 1. Login Screen
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class AuthScreen extends StatefulWidget {
+  const AuthScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _AuthScreenState extends State<AuthScreen> {
+  bool isLogin = true;
   bool isLoading = false;
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-  Future<void> _login() async {
+  Future<void> _authenticate() async {
     if (emailController.text.trim().isEmpty || passwordController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter Email and Password!'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email aur Password dono dalein!'), backgroundColor: Colors.redAccent));
       return;
     }
 
     setState(() => isLoading = true);
-    final url = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${IsadApp.apiKey}';
+    final url = isLogin 
+        ? 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${IsadApp.apiKey}'
+        : 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${IsadApp.apiKey}';
 
     try {
       final response = await http.post(
@@ -146,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final responseData = jsonDecode(response.body);
       
       if (responseData['error'] != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(responseData['error']['message']), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(responseData['error']['message']), backgroundColor: Colors.redAccent));
       } else {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('auth_token', responseData['idToken']);
@@ -157,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Check your internet connection!'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Internet check karein!'), backgroundColor: Colors.redAccent));
     }
     if (mounted) setState(() => isLoading = false);
   }
@@ -171,127 +140,56 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.account_balance_wallet, size: 80, color: Color(0xFF38bdf8)),
-              const SizedBox(height: 20),
-              const Text('Login to Isad Khata', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.account_balance_wallet_rounded, size: 80, color: Color(0xFF6366F1)),
+              ),
+              const SizedBox(height: 25),
+              Text(isLogin ? 'Isad Hisab Kitab' : 'Naya Khata Banayein', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1)),
               const SizedBox(height: 30),
               TextField(
                 controller: emailController,
-                decoration: const InputDecoration(labelText: 'Email Address', border: OutlineInputBorder()),
+                decoration: InputDecoration(
+                  labelText: 'Email Address', 
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.email_outlined),
+                ),
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 15),
               TextField(
                 controller: passwordController,
-                decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder()),
+                decoration: InputDecoration(
+                  labelText: 'Password', 
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.lock_outline),
+                ),
                 obscureText: true,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 25),
               isLoading 
-                ? const CircularProgressIndicator()
+                ? const CircularProgressIndicator(color: Color(0xFF6366F1))
                 : SizedBox(
                     width: double.infinity,
+                    height: 50,
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF38bdf8), padding: const EdgeInsets.symmetric(vertical: 14)),
-                      onPressed: _login,
-                      child: const Text('Login', style: TextStyle(color: Color(0xFF0b0f19), fontWeight: FontWeight.bold, fontSize: 16)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6366F1),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: _authenticate,
+                      child: Text(isLogin ? 'Login Karein' : 'Register Karein', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                     ),
                   ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 10),
               TextButton(
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SignupScreen())),
-                child: const Text('Create a new account? Register', style: TextStyle(color: Color(0xFF38bdf8))),
+                onPressed: () => setState(() => isLogin = !isLogin),
+                child: Text(isLogin ? 'Naya account banayein?' : 'Pehle se account hai? Login karein', style: const TextStyle(color: Color(0xFF6366F1), fontSize: 14)),
               )
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// 2. Signup Screen (Alag Page)
-class SignupScreen extends StatefulWidget {
-  const SignupScreen({super.key});
-
-  @override
-  State<SignupScreen> createState() => _SignupScreenState();
-}
-
-class _SignupScreenState extends State<SignupScreen> {
-  bool isLoading = false;
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-
-  Future<void> _register() async {
-    if (emailController.text.trim().isEmpty || passwordController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter Email and Password!'), backgroundColor: Colors.red));
-      return;
-    }
-
-    setState(() => isLoading = true);
-    final url = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${IsadApp.apiKey}';
-
-    try {
-      final response = await http.post(
-        Uri.parse(url),
-        body: jsonEncode({
-          'email': emailController.text.trim(),
-          'password': passwordController.text.trim(),
-          'returnSecureToken': true,
-        }),
-      );
-      
-      final responseData = jsonDecode(response.body);
-      
-      if (responseData['error'] != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(responseData['error']['message']), backgroundColor: Colors.red));
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account created successfully! Please login.'), backgroundColor: Colors.green));
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Check your internet connection!'), backgroundColor: Colors.red));
-    }
-    if (mounted) setState(() => isLoading = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Register Account')),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.person_add, size: 80, color: Color(0xFF38bdf8)),
-              const SizedBox(height: 20),
-              const Text('Create New Account', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 30),
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(labelText: 'Email Address', border: OutlineInputBorder()),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 15),
-              TextField(
-                controller: passwordController,
-                decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder()),
-                obscureText: true,
-              ),
-              const SizedBox(height: 20),
-              isLoading 
-                ? const CircularProgressIndicator()
-                : SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF38bdf8), padding: const EdgeInsets.symmetric(vertical: 14)),
-                      onPressed: _register,
-                      child: const Text('Register', style: TextStyle(color: Color(0xFF0b0f19), fontWeight: FontWeight.bold, fontSize: 16)),
-                    ),
-                  ),
             ],
           ),
         ),
@@ -331,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    dbUrl = 'https://irsad-b0b2d-default-rtdb.asia-southeast1.firebasedatabase.app/users/${widget.uid}/ration_entries.json?auth=${widget.token}';
+    dbUrl = 'https://irsad-b0b2d-default-rtdb.asia-southeast1.firebasedatabase.app/users/${widget.uid}/hisab_entries.json?auth=${widget.token}';
     loadData();
   }
 
@@ -381,9 +279,17 @@ class _HomeScreenState extends State<HomeScreen> {
         dataMap[e.id.toString()] = e.toJson();
       }
       await http.put(Uri.parse(dbUrl), body: jsonEncode(dataMap));
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Synced to Cloud! ✓', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green, duration: Duration(seconds: 1)));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Online Save Ho Gaya! ✓'), backgroundColor: Colors.green, duration: Duration(seconds: 1)));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cloud sync failed! Saved locally.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.orange, duration: Duration(seconds: 2)));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Net band hai, Phone me save hua.'), backgroundColor: Colors.orange, duration: Duration(seconds: 2)));
+    }
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    if (mounted) {
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => const AuthScreen()));
     }
   }
 
@@ -424,144 +330,132 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        elevation: 1,
-        title: const Text('Isad Manager', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text('Isad Hisab', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
         actions: [
-          Center(child: Text('Total: ₹${_formatPrice(grandTotal)}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 15))),
-          const SizedBox(width: 10),
-          // Profile & Settings Icon on AppBar
           IconButton(
-            icon: const Icon(Icons.person_outline),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileScreen(uid: widget.uid))),
-          ),
-          const SizedBox(width: 5),
+            icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+            tooltip: 'Logout',
+            onPressed: _logout,
+          )
         ],
       ),
-      body: pages[_currentIndex],
+      body: Column(
+        children: [
+          // मॉडर्न टोटल कार्ड
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(color: const Color(0xFF6366F1).withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5)),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Total Hisab', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                    SizedBox(height: 4),
+                    Text('Grand Total', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                Text('₹${_formatPrice(grandTotal)}', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+          Expanded(child: pages[_currentIndex]),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        shape: const CircleBorder(),
+        backgroundColor: const Color(0xFF6366F1),
         elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onPressed: _showAddModal,
-        child: const Icon(Icons.add, color: Colors.white, size: 32),
+        child: const Icon(Icons.add_rounded, color: Colors.white, size: 32),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8.0,
-        child: SizedBox(
-          height: 65,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(Icons.home, 'Home', 0),
-              const SizedBox(width: 48),
-              _buildNavItem(Icons.table_chart, 'Sheet', 1),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(IconData icon, String label, int index) {
-    bool isActive = _currentIndex == index;
-    return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: isActive ? Theme.of(context).colorScheme.primary : Colors.grey, size: 26),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 12, color: isActive ? Theme.of(context).colorScheme.primary : Colors.grey, fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (index) => setState(() => _currentIndex = index),
+        backgroundColor: const Color(0xFF1E1E1E),
+        indicatorColor: const Color(0xFF6366F1).withOpacity(0.2),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded, color: Color(0xFF6366F1)), label: 'Home'),
+          NavigationDestination(icon: Icon(Icons.history_outlined), selectedIcon: Icon(Icons.history_rounded, color: Color(0xFF6366F1)), label: 'History'),
         ],
       ),
     );
   }
 }
 
-// 3. Profile & Settings Screen (Logout inside settings, Day/Night toggle)
-class ProfileScreen extends StatelessWidget {
-  final String uid;
-  const ProfileScreen({super.key, required this.uid});
+// नया फीचर: मेंबर का पूरा हिसाब देखने वाला पेज
+class MemberDetailScreen extends StatelessWidget {
+  final String memberName;
+  final List<Entry> memberEntries;
+  final String Function(double) formatPrice;
 
-  Future<void> _logout(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-    if (context.mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false,
-      );
-    }
-  }
+  const MemberDetailScreen({super.key, required this.memberName, required this.memberEntries, required this.formatPrice});
 
   @override
   Widget build(BuildContext context) {
-    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    double total = memberEntries.fold(0, (sum, e) => sum + e.price);
+    List<Entry> sorted = List.from(memberEntries)..sort((a, b) => b.date.compareTo(a.date));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile & Settings')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      appBar: AppBar(title: Text('$memberName ka Hisab')),
+      body: Column(
         children: [
-          // Profile Details Section
           Container(
+            margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: Colors.grey.withOpacity(0.2)),
+              color: const Color(0xFF1E1E1E),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white12),
             ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Color(0xFF38bdf8),
-                  child: Icon(Icons.person, size: 35, color: Color(0xFF0b0f19)),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('User Profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 5),
-                      Text('ID: ${uid.substring(0, 10)}...', style: const TextStyle(color: Colors.grey, fontSize: 13)),
-                    ],
-                  ),
-                ),
+                const Text('Kul (Total) Baqi:', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                Text('₹${formatPrice(total)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
               ],
             ),
           ),
-          const SizedBox(height: 25),
-          const Text('Settings', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.grey)),
-          const SizedBox(height: 10),
-          // Day/Night Theme Setting
-          SwitchListTile(
-            title: const Text('Dark Mode'),
-            subtitle: const Text('Switch between light and dark theme'),
-            secondary: Icon(isDarkMode ? Icons.dark_mode : Icons.light_mode),
-            value: isDarkMode,
-            onChanged: (val) {
-              IsadApp.of(context).toggleTheme(val);
-            },
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Align(alignment: Alignment.centerLeft, child: Text('Len-Den (Transactions)', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold))),
           ),
-          const Divider(),
-          // Logout Option in Settings
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.redAccent),
-            title: const Text('Logout', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
-            subtitle: const Text('₹${e.price}', style: const TextStyle(color: Color(0xFF38bdf8), fontWeight: FontWeight.bold, fontSize: 16)),
-                    ),
-                  );
-                },
-              ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: sorted.length,
+              itemBuilder: (context, index) {
+                final e = sorted[index];
+                return Card(
+                  color: const Color(0xFF1E1E1E),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.white12)),
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    leading: CircleAvatar(backgroundColor: const Color(0xFF6366F1).withOpacity(0.1), child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF6366F1))),
+                    title: Text(e.item, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    subtitle: Text(e.date, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    trailing: Text('₹${formatPrice(e.price)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
+                );
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -583,50 +477,54 @@ class DashboardTab extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
-          padding: EdgeInsets.fromLTRB(15, 15, 15, 5),
-          child: Text('Members Total Summary', style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.bold)),
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+          child: Text('Sabhi Logon Ka Hisab', style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.bold)),
         ),
         Expanded(
           child: isLoading 
             ? const Center(child: CircularProgressIndicator())
             : entries.isEmpty
-              ? const Center(child: Text('No data available.\nTap (+) below to add an entry.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)))
+              ? const Center(child: Text('Abhi koi hisab nahi hai.\nNiche (+) dabakar entry karein.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)))
               : ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   children: memberTotals.entries.map((entry) {
                     final memberName = entry.key;
                     final memberTotal = entry.value;
                     final listForMember = entries.where((e) => e.name == memberName).toList();
 
-                    return GestureDetector(
-                      onTap: () {
-                        // Click on member name opens individual details page
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => MemberDetailScreen(memberName: memberName, memberEntries: listForMember)),
-                        );
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface, 
-                          borderRadius: BorderRadius.circular(14), 
-                          border: Border.all(color: Colors.grey.withOpacity(0.2)),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(memberName, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 4),
-                                const Text('Tap to view details', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                              ],
-                            ),
-                            Text('₹${formatPrice(memberTotal)}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
-                          ],
+                    return Card(
+                      color: const Color(0xFF1E1E1E),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Colors.white12)),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () {
+                          // नाम पर क्लिक करते ही पूरी डिटेल वाला पेज खुलेगा
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => MemberDetailScreen(memberName: memberName, memberEntries: listForMember, formatPrice: formatPrice)));
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  CircleAvatar(backgroundColor: const Color(0xFF6366F1).withOpacity(0.1), child: Text(memberName[0].toUpperCase(), style: const TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold))),
+                                  const SizedBox(width: 15),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(memberName, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 4),
+                                      const Text('Pura hisab dekhein ->', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              Text('₹${formatPrice(memberTotal)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -649,65 +547,54 @@ class HistoryTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     List<Entry> sorted = List.from(entries)..sort((a, b) => b.date.compareTo(a.date));
-    const TextStyle headerStyle = TextStyle(fontWeight: FontWeight.bold, fontSize: 13);
-    const TextStyle rowStyle = TextStyle(fontSize: 13);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
-          padding: EdgeInsets.fromLTRB(15, 15, 15, 10),
-          child: Text('All Entries Record', style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.bold)),
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+          child: Text('Sabhi Len-Den Ki List', style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.bold)),
         ),
         Expanded(
           child: isLoading 
             ? const Center(child: CircularProgressIndicator())
             : entries.isEmpty
-              ? const Center(child: Text('No history available.', style: TextStyle(color: Colors.grey)))
-              : Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.withOpacity(0.2))),
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                        decoration: BoxDecoration(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF0f172a) : Colors.grey.shade200, borderRadius: const BorderRadius.vertical(top: Radius.circular(12))),
-                        child: const Row(
+              ? const Center(child: Text('Koi history nahi hai.', style: TextStyle(color: Colors.grey)))
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  itemCount: sorted.length,
+                  itemBuilder: (context, index) {
+                    final e = sorted[index];
+                    String shortDate = e.date.length == 10 ? e.date.substring(5) : e.date; 
+
+                    return Card(
+                      color: const Color(0xFF1E1E1E),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.white12)),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 2),
+                        title: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(flex: 3, child: Text('Date', style: headerStyle)),
-                            Expanded(flex: 3, child: Text('Name', style: headerStyle)),
-                            Expanded(flex: 3, child: Text('Item', style: headerStyle)),
-                            Expanded(flex: 2, child: Text('₹', style: headerStyle)),
-                            SizedBox(width: 24),
+                            Text(e.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                            Text('₹${formatPrice(e.price)}', style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 15)),
                           ],
                         ),
-                      ),
-                      Expanded(
-                        child: ListView.separated(
-                          padding: EdgeInsets.zero,
-                          itemCount: sorted.length,
-                          separatorBuilder: (context, index) => Divider(color: Colors.grey.withOpacity(0.2), height: 1),
-                          itemBuilder: (context, index) {
-                            final e = sorted[index];
-                            String shortDate = e.date.length == 10 ? e.date.substring(5) : e.date; 
-
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                              child: Row(
-                                children: [
-                                  Expanded(flex: 3, child: Text(shortDate, style: rowStyle)),
-                                  Expanded(flex: 3, child: Text(e.name, style: rowStyle.copyWith(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                                  Expanded(flex: 3, child: Text(e.item, style: rowStyle, maxLines: 1, overflow: TextOverflow.ellipsis)),
-                                  Expanded(flex: 2, child: Text('₹${formatPrice(e.price)}', style: rowStyle.copyWith(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                                  GestureDetector(onTap: () => onDelete(e.id), child: const Icon(Icons.close, color: Colors.red, size: 20)),
-                                ],
-                              ),
-                            );
-                          },
+                        subtitle: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(e.item, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                            Text(shortDate, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                          ],
+                        ),
+                        trailing: GestureDetector(
+                          onTap: () => onDelete(e.id),
+                          child: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 22),
                         ),
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
         ),
       ],
@@ -736,59 +623,64 @@ class _AddEntryModalState extends State<AddEntryModal> {
     List<String> existingNames = widget.existingEntries.map((e) => e.name).toSet().toList();
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 20, right: 20, top: 20),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24, bottom: 24),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Add New Entry', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 15),
+            const Text('Naya Hisab Jodein', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
             if (existingNames.isNotEmpty) ...[
               DropdownButtonFormField<String>(
-                dropdownColor: Theme.of(context).colorScheme.surface,
-                decoration: const InputDecoration(labelText: 'Select Existing Member', border: OutlineInputBorder()),
+                dropdownColor: const Color(0xFF1E1E1E),
+                decoration: InputDecoration(labelText: 'Purana Naam Chunein', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
                 items: existingNames.map((n) => DropdownMenuItem(value: n, child: Text(n))).toList(),
                 onChanged: (val) { if (val != null) nameController.text = val; },
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
             ],
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Member Name', border: OutlineInputBorder())),
-            const SizedBox(height: 10),
+            TextField(controller: nameController, decoration: InputDecoration(labelText: 'Naam Likhein', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
+            const SizedBox(height: 12),
             TextField(
-              controller: TextEditingController(text: selectedDate), readOnly: true, decoration: const InputDecoration(labelText: 'Date', border: OutlineInputBorder()),
+              controller: TextEditingController(text: selectedDate), readOnly: true, decoration: InputDecoration(labelText: 'Tarik (Date)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), suffixIcon: const Icon(Icons.calendar_today_rounded)),
               onTap: () async {
                 DateTime? picked = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2030));
                 if (picked != null) { setState(() { selectedDate = picked.toIso8601String().split('T')[0]; }); }
               },
             ),
-            const SizedBox(height: 10),
-            TextField(controller: itemController, decoration: const InputDecoration(labelText: 'Item Name (Optional)', border: OutlineInputBorder())),
-            const SizedBox(height: 10),
-            TextField(controller: priceController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Amount (₹)', border: OutlineInputBorder())),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
+            TextField(controller: itemController, decoration: InputDecoration(labelText: 'Saman / Vivran (Jaise: Udhar, Kirana)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
+            const SizedBox(height: 12),
+            TextField(controller: priceController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Kitne Paise (₹)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), prefixIcon: const Icon(Icons.currency_rupee_rounded))),
+            const SizedBox(height: 24),
             Row(
               children: [
-                Expanded(child: OutlinedButton(style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)), onPressed: () => Navigator.pop(context), child: const Text('Cancel'))),
-                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Radd (Cancel)'),
+                  )
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                     onPressed: () {
                       if (nameController.text.trim().isEmpty || priceController.text.trim().isEmpty) return;
                       double? price = double.tryParse(priceController.text);
                       if (price == null || price <= 0) return;
 
-                      Entry newEntry = Entry(id: DateTime.now().millisecondsSinceEpoch, name: nameController.text.trim(), date: selectedDate, item: itemController.text.trim().isEmpty ? 'Ration Item' : itemController.text.trim(), price: price);
+                      Entry newEntry = Entry(id: DateTime.now().millisecondsSinceEpoch, name: nameController.text.trim(), date: selectedDate, item: itemController.text.trim().isEmpty ? 'General Hisab' : itemController.text.trim(), price: price);
                       widget.onSave(newEntry);
                       Navigator.pop(context);
                     },
-                    child: const Text('Save', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    child: const Text('Save Karein', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
           ],
         ),
       ),
