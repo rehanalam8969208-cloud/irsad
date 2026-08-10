@@ -10,7 +10,6 @@ void main() {
 class IsadApp extends StatelessWidget {
   const IsadApp({super.key});
 
-  // तेरी Firebase Web API Key
   static const String apiKey = 'AIzaSyA1Dg_ospNbgXatGj4xnWq-1njNc5Y0dCY'; 
 
   @override
@@ -19,14 +18,14 @@ class IsadApp extends StatelessWidget {
       title: 'Isad Khata',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        useMaterial3: true, // एकदम मॉडर्न लुक के लिए
+        useMaterial3: true,
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF121212), // प्रीमियम डार्क बैकग्राउंड
-        primaryColor: const Color(0xFF6366F1), // मॉडर्न इंडिगो कलर
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        primaryColor: const Color(0xFF6366F1),
         colorScheme: const ColorScheme.dark(
           primary: Color(0xFF6366F1),
-          secondary: Color(0xFF10B981), // पैसों के लिए एमराल्ड ग्रीन
-          surface: Color(0xFF1E1E1E), // कार्ड्स का कलर
+          secondary: Color(0xFF10B981),
+          surface: Color(0xFF1E1E1E),
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF121212),
@@ -341,7 +340,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
-          // मॉडर्न टोटल कार्ड
           Container(
             margin: const EdgeInsets.fromLTRB(16, 10, 16, 20),
             padding: const EdgeInsets.all(20),
@@ -396,7 +394,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// नया फीचर: मेंबर का पूरा हिसाब देखने वाला पेज
 class MemberDetailScreen extends StatelessWidget {
   final String memberName;
   final List<Entry> memberEntries;
@@ -500,7 +497,6 @@ class DashboardTab extends StatelessWidget {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
                         onTap: () {
-                          // नाम पर क्लिक करते ही पूरी डिटेल वाला पेज खुलेगा
                           Navigator.push(context, MaterialPageRoute(builder: (context) => MemberDetailScreen(memberName: memberName, memberEntries: listForMember, formatPrice: formatPrice)));
                         },
                         child: Padding(
