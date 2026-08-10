@@ -24,16 +24,17 @@ jobs:
       with:
         channel: 'stable'
 
-    - name: Ensure Android Folder Exists
+    - name: Create Android Platform Once
       run: |
         if [ ! -d "android" ]; then
           flutter create --platforms android .
         fi
 
-    - name: Add Internet Permission
+    - name: Add Internet Permission Safely
       run: |
-        if [ -f "android/app/src/main/AndroidManifest.xml" ]; then
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
+        MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+        if [ -f "$MANIFEST_PATH" ] && ! grep -q "android.permission.INTERNET" "$MANIFEST_PATH"; then
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' "$MANIFEST_PATH"
         fi
 
     - name: Install Dependencies
