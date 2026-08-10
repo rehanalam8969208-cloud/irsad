@@ -24,23 +24,11 @@ jobs:
       with:
         channel: 'stable'
 
-    - name: Fresh Android Setup
-      run: |
-        rm -rf android
-        flutter create --platforms android .
-
-    - name: Add Internet Permission
-      run: |
-        sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
-
     - name: Install Dependencies
       run: flutter pub get
 
-    - name: Clean Build Cache
-      run: flutter clean
-
     - name: Build Release APK
-      run: flutter build apk --release --no-pub
+      run: flutter build apk --release
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
