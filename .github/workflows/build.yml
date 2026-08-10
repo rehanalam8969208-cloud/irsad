@@ -24,37 +24,13 @@ jobs:
       with:
         channel: 'stable'
 
-    - name: Create Android Platform
-      run: |
-        if [ ! -d "android" ]; then
-          flutter create --platforms android .
-        fi
-
-    - name: Add Internet Permission
-      run: |
-        MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
-        if [ -f "$MANIFEST_PATH" ] && ! grep -q "android.permission.INTERNET" "$MANIFEST_PATH"; then
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' "$MANIFEST_PATH"
-        fi
-
-    - name: Fix Gradle Wrapper Properties for Stability
-        run: |
-        GRADLE_PROPS="android/gradle/wrapper/gradle-wrapper.properties"
-        if [ -f "$GRADLE_PROPS" ]; then
-          echo "distributionBase=GRADLE_USER_HOME" > "$GRADLE_PROPS"
-          echo "distributionPath=wrapper/dists" >> "$GRADLE_PROPS"
-          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.7-bin.zip" >> "$GRADLE_PROPS"
-          echo "zipStoreBase=GRADLE_USER_HOME" >> "$GRADLE_PROPS"
-          echo "zipStorePath=wrapper/dists" >> "$GRADLE_PROPS"
-        fi
-
-    - name: Install Dependencies
+    - name: Get Flutter Dependencies
       run: flutter pub get
 
     - name: Build Release APK
       run: flutter build apk --release
 
-    - name: Upload APK
+    - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: Isad-Ration-App
