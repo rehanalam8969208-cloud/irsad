@@ -24,13 +24,26 @@ jobs:
       with:
         channel: 'stable'
 
-    - name: Get Flutter Dependencies
+    - name: Create Android Platform
+      run: |
+        if [ ! -d "android" ]; then
+          flutter create --platforms android .
+        fi
+
+    - name: Add Internet Permission
+      run: |
+        MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+        if [ -f "$MANIFEST_PATH" ] && ! grep -q "android.permission.INTERNET" "$MANIFEST_PATH"; then
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' "$MANIFEST_PATH"
+        fi
+
+    - name: Install Dependencies
       run: flutter pub get
 
     - name: Build Release APK
       run: flutter build apk --release
 
-    - name: Upload APK Artifact
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: Isad-Ration-App
