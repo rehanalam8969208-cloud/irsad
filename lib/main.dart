@@ -15,7 +15,7 @@ class IsadApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Isad Khata',
+      title: 'Isad Hisab',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -682,4 +682,4 @@ class _AddEntryModalState extends State<AddEntryModal> {
       ),
     );
   }
-}
+}          
