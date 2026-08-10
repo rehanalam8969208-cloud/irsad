@@ -24,11 +24,10 @@ jobs:
       with:
         channel: 'stable'
 
-    - name: Reset Android Folder (Fixes Gradle Error)
+    - name: Pure Android Setup (No Hacks)
       run: |
         rm -rf android
         flutter create --platforms android .
-        sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
 
     - name: Install Dependencies
       run: flutter pub get
